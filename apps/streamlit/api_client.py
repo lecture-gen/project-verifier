@@ -130,6 +130,23 @@ def create_evaluation(
     )
 
 
+def list_evaluations() -> list[dict[str, object]]:
+    return request_json_list("GET", "/api/project-evaluations")
+
+
+def update_question_policy(
+    evaluation_id: str,
+    question_policy: dict[str, object],
+    admin_password: str,
+) -> dict[str, object]:
+    return request_json_dict(
+        "PATCH",
+        f"/api/project-evaluations/{evaluation_id}/question-policy",
+        json={"question_policy": question_policy},
+        headers={"X-Admin-Password": admin_password},
+    )
+
+
 def verify_admin(evaluation_id: str, admin_password: str) -> dict[str, object]:
     return request_json_dict(
         "POST",
