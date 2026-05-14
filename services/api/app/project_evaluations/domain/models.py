@@ -226,6 +226,23 @@ class ProjectEvaluationRead(BaseModel):
     updated_at: datetime
 
 
+class ProjectEvaluationSummaryRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    room_name: str = ""
+    project_name: str
+    candidate_name: str = ""
+    status: EvaluationStatus
+    question_count: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class QuestionPolicyUpdate(BaseModel):
+    question_policy: QuestionGenerationPolicy
+
+
 class ProjectEvaluationStatusRead(BaseModel):
     evaluation_id: str
     status: str

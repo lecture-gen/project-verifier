@@ -31,6 +31,8 @@ from services.api.app.project_evaluations.domain.models import (
     ProjectEvaluationCreate,
     ProjectEvaluationRead,
     ProjectEvaluationStatusRead,
+    ProjectEvaluationSummaryRead,
+    QuestionPolicyUpdate,
     StudentInterviewStateRead,
 )
 from services.api.app.project_evaluations.interview.speech_service import (
@@ -106,6 +108,31 @@ def create_evaluation(
     service: Annotated[ProjectEvaluationService, Depends(get_service)],
 ) -> ProjectEvaluationRead:
     return service.create_evaluation(payload)
+
+
+@router.get("", response_model=list[ProjectEvaluationSummaryRead])
+def list_evaluations(
+    service: Annotated[ProjectEvaluationService, Depends(get_service)],
+) -> list[ProjectEvaluationSummaryRead]:
+    return service.list_evaluation_summaries()
+
+
+@router.patch(
+    "/{evaluation_id}/question-policy", response_model=ProjectEvaluationRead
+)
+def update_question_policy(
+    evaluation_id: str,
+    payload: QuestionPolicyUpdate,
+    service: Annotated[ProjectEvaluationService, Depends(get_service)],
+    request_client_id: Annotated[str, Depends(client_id)],
+    x_admin_password: Annotated[str | None, Header()] = None,
+) -> ProjectEvaluationRead:
+    return service.update_question_policy(
+        evaluation_id,
+        payload.question_policy,
+        x_admin_password,
+        request_client_id,
+    )
 
 
 @router.get("/{evaluation_id}", response_model=ProjectEvaluationRead)

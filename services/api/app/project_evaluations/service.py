@@ -34,7 +34,9 @@ from services.api.app.project_evaluations.domain.models import (
     ProjectEvaluationCreate,
     ProjectEvaluationRead,
     ProjectEvaluationStatusRead,
+    ProjectEvaluationSummaryRead,
     QuestionExchange,
+    QuestionGenerationPolicy,
 )
 from services.api.app.project_evaluations.ingestion.file_classifier import (
     CODE_EXTENSIONS,
@@ -187,6 +189,46 @@ class ProjectEvaluationService:
             room_password_hash=_hash_password(payload.room_password),
             admin_password_hash=_hash_password(payload.admin_password),
         )
+
+    def list_evaluation_summaries(self) -> list[ProjectEvaluationSummaryRead]:
+        return self.repository.list_evaluation_summaries()
+
+    def update_question_policy(
+        self,
+        evaluation_id: str,
+        policy: QuestionGenerationPolicy,
+        admin_password: str | None,
+        client_id: str = "local",
+    ) -> ProjectEvaluationRead:
+        self.ensure_admin(evaluation_id, admin_password, client_id)
+        if sum(policy.bloom_ratios.values()) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Bloom 비율은 하나 이상 1 이상이어야 합니다.",
+            )
+        evaluation_status = self.get_status(evaluation_id)
+        allowed_phases = {"created", "uploaded", "context_ready"}
+        if evaluation_status.phase not in allowed_phases:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "stage": "question_policy_update",
+                    "reason": "policy_locked",
+                    "message": (
+                        "현재 단계에서는 질문 정책을 변경할 수 없습니다. "
+                        "질문이 이미 생성된 평가는 별도 재생성 흐름이 필요합니다."
+                    ),
+                    "phase": evaluation_status.phase,
+                    "allowed_phases": sorted(allowed_phases),
+                },
+            )
+        updated = self.repository.update_question_policy(evaluation_id, policy)
+        if updated is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="프로젝트 평가를 찾을 수 없습니다.",
+            )
+        return updated
 
     def get_evaluation(self, evaluation_id: str) -> ProjectEvaluationRead:
         evaluation = self.repository.get_evaluation(evaluation_id)

@@ -3,7 +3,7 @@ from collections.abc import Iterable
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -26,6 +26,7 @@ from services.api.app.project_evaluations.domain.models import (
     ProjectArtifactRead,
     ProjectEvaluationCreate,
     ProjectEvaluationRead,
+    ProjectEvaluationSummaryRead,
     QuestionExchange,
     QuestionGenerationPolicy,
     RubricCriterion,
@@ -124,6 +125,51 @@ class ProjectEvaluationRepository:
         if row is None:
             return QuestionGenerationPolicy()
         return QuestionGenerationPolicy(**from_json(row.question_policy_json, {}))
+
+    def list_evaluation_summaries(self) -> list[ProjectEvaluationSummaryRead]:
+        rows = list(
+            self.session.scalars(
+                select(ProjectEvaluationRow).order_by(
+                    ProjectEvaluationRow.created_at.desc()
+                )
+            ).all()
+        )
+        if not rows:
+            return []
+        count_rows = self.session.execute(
+            select(
+                InterviewQuestionRow.evaluation_id,
+                func.count(InterviewQuestionRow.id),
+            ).group_by(InterviewQuestionRow.evaluation_id)
+        ).all()
+        question_count_by_evaluation = {
+            evaluation_id: int(count) for evaluation_id, count in count_rows
+        }
+        return [
+            ProjectEvaluationSummaryRead(
+                id=row.id,
+                room_name=row.room_name,
+                project_name=row.project_name,
+                candidate_name=row.candidate_name,
+                status=EvaluationStatus(row.status),
+                question_count=question_count_by_evaluation.get(row.id, 0),
+                created_at=row.created_at,
+                updated_at=row.updated_at,
+            )
+            for row in rows
+        ]
+
+    def update_question_policy(
+        self, evaluation_id: str, policy: QuestionGenerationPolicy
+    ) -> ProjectEvaluationRead | None:
+        row = self.get_evaluation_row(evaluation_id)
+        if row is None:
+            return None
+        row.question_policy_json = to_json(policy.model_dump())
+        row.updated_at = utc_now()
+        self.session.commit()
+        self.session.refresh(row)
+        return self.to_evaluation_read(row)
 
     def update_evaluation_status(
         self, evaluation_id: str, status: EvaluationStatus

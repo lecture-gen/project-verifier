@@ -1342,3 +1342,144 @@ def test_create_session_without_questions_rejected(evaluation_with_upload: str) 
         headers={"X-Admin-Password": "admin-pass"},
     )
     assert resp.status_code == 409
+
+
+def test_list_evaluations_returns_list_without_auth() -> None:
+    resp = client.get("/api/project-evaluations")
+    assert resp.status_code == 200, resp.text
+    assert isinstance(resp.json(), list)
+
+
+def test_list_evaluations_returns_summary_with_question_count(
+    evaluation_with_questions: str,
+) -> None:
+    list_resp = client.get("/api/project-evaluations")
+    assert list_resp.status_code == 200, list_resp.text
+    summaries = list_resp.json()
+    assert isinstance(summaries, list)
+    matching = [item for item in summaries if item["id"] == evaluation_with_questions]
+    assert matching, f"expected {evaluation_with_questions} in {summaries}"
+    summary = matching[0]
+    assert summary["project_name"]
+    assert summary["room_name"]
+    assert summary["status"]
+    assert summary["question_count"] >= 1
+    assert "created_at" in summary
+    assert "updated_at" in summary
+
+
+def test_list_evaluations_orders_by_created_desc() -> None:
+    first = client.post(
+        "/api/project-evaluations",
+        json={
+            "project_name": "first project",
+            "room_name": "first",
+            "room_password": "room-pass",
+            "admin_password": "admin-pass",
+        },
+    )
+    second = client.post(
+        "/api/project-evaluations",
+        json={
+            "project_name": "second project",
+            "room_name": "second",
+            "room_password": "room-pass",
+            "admin_password": "admin-pass",
+        },
+    )
+    assert first.status_code == 200
+    assert second.status_code == 200
+    resp = client.get("/api/project-evaluations")
+    assert resp.status_code == 200
+    ids = [item["id"] for item in resp.json()]
+    assert ids.index(second.json()["id"]) < ids.index(first.json()["id"])
+
+
+def test_update_question_policy_requires_admin(evaluation_id: str) -> None:
+    resp = client.patch(
+        f"/api/project-evaluations/{evaluation_id}/question-policy",
+        json={
+            "question_policy": {
+                "total_question_count": 8,
+                "bloom_ratios": {level: 1 for level in BLOOM_LEVELS},
+            }
+        },
+    )
+    assert resp.status_code == 403
+
+
+def test_update_question_policy_persists_new_policy(evaluation_id: str) -> None:
+    resp = client.patch(
+        f"/api/project-evaluations/{evaluation_id}/question-policy",
+        headers={"X-Admin-Password": "admin-pass"},
+        json={
+            "question_policy": {
+                "total_question_count": 10,
+                "bloom_ratios": {
+                    "기억": 0,
+                    "이해": 2,
+                    "적용": 2,
+                    "분석": 1,
+                    "평가": 1,
+                    "창안": 0,
+                },
+            }
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert data["question_policy"]["total_question_count"] == 10
+    assert data["question_policy"]["bloom_ratios"]["이해"] == 2
+
+    read_resp = client.get(
+        f"/api/project-evaluations/{evaluation_id}",
+        headers={"X-Admin-Password": "admin-pass"},
+    )
+    assert read_resp.status_code == 200
+    assert read_resp.json()["question_policy"]["total_question_count"] == 10
+
+
+def test_update_question_policy_rejects_all_zero_ratios(evaluation_id: str) -> None:
+    resp = client.patch(
+        f"/api/project-evaluations/{evaluation_id}/question-policy",
+        headers={"X-Admin-Password": "admin-pass"},
+        json={
+            "question_policy": {
+                "total_question_count": 6,
+                "bloom_ratios": {level: 0 for level in BLOOM_LEVELS},
+            }
+        },
+    )
+    assert resp.status_code in {400, 422}
+
+
+def test_update_question_policy_blocked_after_questions_generated(
+    evaluation_with_questions: str,
+) -> None:
+    resp = client.patch(
+        f"/api/project-evaluations/{evaluation_with_questions}/question-policy",
+        headers={"X-Admin-Password": "admin-pass"},
+        json={
+            "question_policy": {
+                "total_question_count": 8,
+                "bloom_ratios": {level: 1 for level in BLOOM_LEVELS},
+            }
+        },
+    )
+    assert resp.status_code == 409
+
+
+def test_create_evaluation_without_question_policy_uses_default() -> None:
+    resp = client.post(
+        "/api/project-evaluations",
+        json={
+            "project_name": "기본 정책 프로젝트",
+            "room_name": "기본 방",
+            "room_password": "room-pass",
+            "admin_password": "admin-pass",
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert data["question_policy"]["total_question_count"] == 6
+    assert data["question_policy"]["bloom_ratios"] == {level: 1 for level in BLOOM_LEVELS}
