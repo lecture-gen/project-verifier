@@ -30,7 +30,7 @@ def _render_sidebar() -> None:
             health = get_health()
         except ApiClientError as exc:
             st.warning(str(exc))
-            st.caption("FastAPI 서버: `uv run uvicorn services.api.app.main:app --reload`")
+            st.caption("FastAPI 서버: `uv run uvicorn app.main:app --reload`")
         else:
             st.success("연결됨")
             storage = health.get("storage", {})

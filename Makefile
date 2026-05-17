@@ -1,19 +1,27 @@
-.PHONY: api streamlit test lint format qdrant-up qdrant-down qdrant-reset qdrant-status reset-demo-data
+.PHONY: api backend-dev backend-lint backend-format frontend-dev frontend-build frontend-types frontend-lint qdrant-up qdrant-down qdrant-reset qdrant-status reset-demo-data
 
-api:
-	uv run uvicorn services.api.app.main:app --reload
+api: backend-dev
 
-streamlit:
-	uv run streamlit run apps/streamlit/Home.py
+backend-dev:
+	cd backend && uv run uvicorn app.main:app --reload
 
-test:
-	uv run pytest
+backend-lint:
+	cd backend && uv run ruff check .
 
-lint:
-	uv run ruff check .
+backend-format:
+	cd backend && uv run ruff format .
 
-format:
-	uv run ruff format .
+frontend-dev:
+	cd frontend && pnpm dev
+
+frontend-build:
+	cd frontend && pnpm build
+
+frontend-types:
+	cd frontend && pnpm openapi:gen
+
+frontend-lint:
+	cd frontend && pnpm lint
 
 qdrant-up:
 	docker compose up -d qdrant
