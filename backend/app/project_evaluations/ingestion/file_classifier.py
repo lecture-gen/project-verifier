@@ -31,16 +31,39 @@ CODE_EXTENSIONS = {
     ".sql",
 }
 CONFIG_FILE_NAMES = {
+    # 환경/컨테이너
     ".env.example",
     "docker-compose.yml",
     "docker-compose.yaml",
+    # Python
+    "pyproject.toml",
+    "requirements.txt",
+    "pipfile",
+    "pipfile.lock",
+    "uv.lock",
+    # JavaScript / TypeScript
     "package.json",
     "package-lock.json",
     "pnpm-lock.yaml",
-    "pyproject.toml",
-    "requirements.txt",
-    "uv.lock",
     "yarn.lock",
+    # JVM
+    "pom.xml",
+    "build.gradle",
+    "build.gradle.kts",
+    "settings.gradle",
+    "settings.gradle.kts",
+    # Go
+    "go.mod",
+    "go.sum",
+    # Rust
+    "cargo.toml",
+    "cargo.lock",
+    # Ruby
+    "gemfile",
+    "gemfile.lock",
+    # PHP
+    "composer.json",
+    "composer.lock",
 }
 API_SPEC_NAMES = {
     "api.yaml",
@@ -108,7 +131,10 @@ IGNORED_EXTENSIONS = {
     ".ico",
     ".jpeg",
     ".jpg",
-    ".lock",
+    # NOTE: ".lock" 은 IGNORE 하지 않는다.
+    # 의존성 lock 파일(uv.lock, Pipfile.lock, yarn.lock, Gemfile.lock, composer.lock,
+    # Cargo.lock 등) 은 의존성 정보의 1차 근거이므로 structural_extractor 가 파싱해야 한다.
+    # 그래서 .lock 확장자를 IGNORE 목록에서 명시적으로 제외한다.
     ".mp3",
     ".mp4",
     ".o",

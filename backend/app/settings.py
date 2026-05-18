@@ -13,7 +13,7 @@ class ApiSettings(BaseSettings):
     OPENAI_TTS_MODEL: str = "gpt-4o-mini-tts"
     OPENAI_TTS_VOICE: str = "coral"
     OPENAI_TTS_INSTRUCTIONS: str = (
-        "전문 면접관처럼 차분하고 명확한 톤으로, 자연스러운 한국어 억양으로 말해 주세요."
+        "전문 교수자처럼 차분하고 명확한 톤으로, 자연스러운 한국어 억양으로 말해 주세요."
     )
     QDRANT_URL: str = "http://localhost:6333"
     QDRANT_COLLECTION_NAME: str = "project_evaluation_chunks"
@@ -23,8 +23,8 @@ class ApiSettings(BaseSettings):
     APP_MAX_UPLOAD_MB: int = 50
     APP_MAX_EXTRACTED_MB: int = 150
     APP_MAX_TEXT_FILE_MB: int = 10
-    APP_MAX_ZIP_MEMBERS: int = 500
-    APP_MAX_PROCESSED_FILES: int = 120
+    APP_MAX_ZIP_MEMBERS: int = 2_000
+    APP_MAX_PROCESSED_FILES: int = 1_000
     APP_MAX_EXTRACTED_TEXT_CHARS: int = 500_000
     APP_MAX_PDF_PAGES: int = 30
     APP_MAX_DOCX_PARAGRAPHS: int = 2_000
