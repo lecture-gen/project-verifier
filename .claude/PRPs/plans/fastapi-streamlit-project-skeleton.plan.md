@@ -8,7 +8,7 @@ PRD Phase 1은 FastAPI backend, Streamlit frontend, SQLite3 local storage, Qdran
 
 As a 프로젝트 평가 서비스를 구현하는 개발자,
 I want FastAPI + Streamlit + SQLite3 기반 skeleton을 빠르게 실행할 수 있기를,
-so that 이후 zip 분석, 질문 생성, 인터뷰, 리포트 기능을 같은 구조 안에서 단계적으로 구현할 수 있다.
+so that 이후 zip 분석, 질문 생성, 검증, 리포트 기능을 같은 구조 안에서 단계적으로 구현할 수 있다.
 
 ## Problem → Solution
 
@@ -68,7 +68,7 @@ so that 이후 zip 분석, 질문 생성, 인터뷰, 리포트 기능을 같은 
 | 개발 실행 | `cli/` 명령만 존재 | FastAPI와 Streamlit을 각각 실행 | 도메인 기능은 아직 없음 |
 | 상태 확인 | Qdrant status Make target만 존재 | `GET /health` + Streamlit API status | Phase 1 smoke test 기준 |
 | 저장소 | CLI는 Qdrant 중심 | SQLite3 파일 경로와 artifact 디렉터리 예약 | 실제 schema는 Phase 2 |
-| UI | 없음 | Streamlit 시작 화면 | 업로드/인터뷰 기능은 placeholder |
+| UI | 없음 | Streamlit 시작 화면 | 업로드/검증 기능은 placeholder |
 
 ---
 

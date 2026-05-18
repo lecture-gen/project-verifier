@@ -15,9 +15,9 @@
 6. Qdrant에 embedding과 metadata payload를 저장한다.
 7. RAG retrieval로 project context와 question context pack을 만든다.
 8. LLM이 자료 기반 질문을 생성한다.
-9. Streamlit이 단계형 인터뷰를 진행한다.
+9. Streamlit이 단계형 검증를 진행한다.
 10. FastAPI가 답변 평가와 꼬리질문 생성을 수행한다.
-11. 인터뷰 종료 후 FastAPI가 최종 리포트를 생성한다.
+11. 검증 종료 후 FastAPI가 최종 리포트를 생성한다.
 12. Streamlit이 프로젝트 영역별 리포트를 표시한다.
 ```
 
@@ -56,7 +56,7 @@ report_generating -> failed
 | `extracting` | zip 해제와 텍스트 추출 진행 중 | 자료 추출 중 |
 | `indexing` | splitter와 Qdrant ingest 진행 중 | RAG 인덱싱 중 |
 | `context_ready` | 프로젝트 context 생성 완료 | 분석 요약 표시 가능 |
-| `questions_ready` | 질문 생성 완료 | 인터뷰 시작 가능 |
+| `questions_ready` | 질문 생성 완료 | 검증 시작 가능 |
 | `interviewing` | 질문/답변 turn 저장 중 | 현재 질문 표시 |
 | `report_generating` | 최종 리포트 생성 중 | 리포트 생성 중 |
 | `completed` | 리포트까지 완료 | 리포트 표시 |
@@ -100,14 +100,14 @@ GET  /api/project-evaluations/{evaluation_id}/report
 
 Streamlit은 다음만 담당한다.
 
-- 프로젝트 이름, 지원자/팀 이름, 설명 입력
+- 프로젝트 이름, 학생/팀 이름, 설명 입력
 - 단일 zip 업로드
 - 분석 상태와 실패 메시지 표시
 - 질문 텍스트 표시
 - 텍스트 답변 입력
 - 선택적 오디오 녹음 입력
 - transcript 확인
-- 인터뷰 turn 진행
+- 검증 turn 진행
 - 최종 리포트 표시
 
 Streamlit은 다음을 직접 수행하지 않는다.
@@ -192,9 +192,9 @@ FastAPI는 다음의 source of truth다.
 - 외부 시스템 오류는 retryable 여부를 기록한다.
 - 사용자가 직접 수정할 수 있는 입력 문제는 확인 대상을 구체적으로 표시한다.
 
-## 인터뷰 UX 원칙
+## 검증 UX 원칙
 
-MVP는 Streamlit 단계형 인터뷰다.
+MVP는 Streamlit 단계형 검증다.
 
 ```text
 질문 표시

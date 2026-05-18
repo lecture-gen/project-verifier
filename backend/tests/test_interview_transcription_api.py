@@ -32,7 +32,7 @@ def evaluation_session() -> dict[str, str]:
         "/api/project-evaluations",
         json={
             "project_name": "전사 테스트 프로젝트",
-            "candidate_name": "지원자",
+            "candidate_name": "학생",
             "description": "오디오 전사 API 테스트",
             "room_name": "전사 방",
             "room_password": "room-pass",
@@ -69,7 +69,7 @@ def evaluation_session() -> dict[str, str]:
         )
     join_resp = client.post(
         f"/api/project-evaluations/{evaluation_id}/join",
-        json={"participant_name": "지원자", "room_password": "room-pass"},
+        json={"participant_name": "학생", "room_password": "room-pass"},
     )
     assert join_resp.status_code == 200, join_resp.text
     session_data = join_resp.json()["session"]

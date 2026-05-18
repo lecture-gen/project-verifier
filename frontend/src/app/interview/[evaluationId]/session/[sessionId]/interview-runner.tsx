@@ -134,7 +134,7 @@ export function InterviewRunner({
         return;
       }
       case "completed": {
-        toast.success("인터뷰가 완료되어 리포트로 이동합니다.");
+        toast.success("검증가 완료되어 리포트로 이동합니다.");
         clearInterviewSession(sessionId).catch(() => undefined);
         router.replace(
           `/interview/${evaluationId}/report?sessionId=${sessionId}`,
@@ -187,25 +187,25 @@ export function InterviewRunner({
     try {
       await completeMutation.mutateAsync();
       clearInterviewSession(sessionId).catch(() => undefined);
-      toast.success("인터뷰를 종료했습니다. 리포트로 이동합니다.");
+      toast.success("검증를 종료했습니다. 리포트로 이동합니다.");
       router.replace(`/interview/${evaluationId}/report?sessionId=${sessionId}`);
     } catch (error) {
-      toast.error(describeError(error, "인터뷰 종료에 실패했습니다."));
+      toast.error(describeError(error, "검증 종료에 실패했습니다."));
     }
   }
 
   async function onAbort() {
     const confirmed = window.confirm(
-      "인터뷰를 중단할까요? 지금까지 진행한 내용으로 리포트가 생성됩니다.",
+      "검증를 중단할까요? 지금까지 진행한 내용으로 리포트가 생성됩니다.",
     );
     if (!confirmed) return;
     try {
       await abortMutation.mutateAsync();
       clearInterviewSession(sessionId).catch(() => undefined);
-      toast.success("인터뷰가 중단되었습니다.");
+      toast.success("검증가 중단되었습니다.");
       router.replace(`/interview/${evaluationId}/report?sessionId=${sessionId}`);
     } catch (error) {
-      toast.error(describeError(error, "인터뷰 중단에 실패했습니다."));
+      toast.error(describeError(error, "검증 중단에 실패했습니다."));
     }
   }
 
@@ -236,7 +236,7 @@ export function InterviewRunner({
           </span>
         </div>
         <div>
-          <h1 className="font-serif text-3xl leading-tight">인터뷰 진행</h1>
+          <h1 className="font-serif text-3xl leading-tight">검증 진행</h1>
           <p className="mt-3 text-sm text-muted-foreground">
             한 질문에 답하면 시스템이 검증을 위한 꼬리질문을 던질 수 있어요. 마지막
             질문까지 마치거나 “종료”를 누르면 리포트가 생성됩니다.
@@ -260,7 +260,7 @@ export function InterviewRunner({
             onClick={onAbort}
             disabled={submitting}
           >
-            인터뷰 중단
+            검증 중단
           </Button>
         </div>
       </aside>

@@ -1,4 +1,4 @@
-// 지원자용 /interview/[id]/report 와 평가자용 /admin/[id]?tab=report 가 공유하는
+// 학생용 /interview/[id]/report 와 평가자용 /admin/[id]?tab=report 가 공유하는
 // 단일 리포트 뷰. EvaluationReportRead 만 받아 자체적으로 narrow 한 데이터를 만든다.
 
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,7 @@ import { VerdictBadge } from "./verdict-badge";
 
 export interface ReportViewProps {
   report: EvaluationReportRead;
-  // 평가자 콘솔에서 노출할지(true), 지원자 페이지에서 노출할지(false). 일부 섹션 가시성 분기에 사용.
+  // 평가자 콘솔에서 노출할지(true), 학생 페이지에서 노출할지(false). 일부 섹션 가시성 분기에 사용.
   audience?: "admin" | "participant";
 }
 

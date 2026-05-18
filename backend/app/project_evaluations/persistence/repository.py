@@ -267,17 +267,17 @@ class ProjectEvaluationRepository:
         self,
         evaluation_id: str,
         summary: str,
-        tech_stack: list[str],
+        tech_stack: list[dict[str, Any]],
         features: list[str],
-        architecture_notes: list[str],
-        data_flow: list[str],
-        risk_points: list[str],
+        architecture: dict[str, Any],
+        student_implementation_risks: list[dict[str, Any]],
+        structural_facts: dict[str, Any],
         question_targets: list[str],
         areas: list[dict[str, Any]],
         rag_status: dict[str, Any] | None = None,
     ) -> ExtractedProjectContextRead:
         if self.has_sessions(evaluation_id):
-            raise RuntimeError("인터뷰가 시작된 평가는 context를 교체할 수 없습니다.")
+            raise RuntimeError("검증가 시작된 평가는 context를 교체할 수 없습니다.")
         self.session.execute(
             delete(InterviewQuestionRow).where(
                 InterviewQuestionRow.evaluation_id == evaluation_id
@@ -297,9 +297,9 @@ class ProjectEvaluationRepository:
         row.summary = summary
         row.tech_stack_json = to_json(tech_stack)
         row.features_json = to_json(features)
-        row.architecture_notes_json = to_json(architecture_notes)
-        row.data_flow_json = to_json(data_flow)
-        row.risk_points_json = to_json(risk_points)
+        row.architecture_json = to_json(architecture)
+        row.student_risks_json = to_json(student_implementation_risks)
+        row.structural_facts_json = to_json(structural_facts)
         row.question_targets_json = to_json(question_targets)
         row.rag_status_json = to_json(rag_status or {})
         if existing is None:
@@ -312,6 +312,8 @@ class ProjectEvaluationRepository:
                 evaluation_id=evaluation_id,
                 name=str(area["name"]),
                 summary=str(area.get("summary", "")),
+                role_in_project=str(area.get("role_in_project", "")),
+                key_concerns_json=to_json(list(area.get("key_concerns", []) or [])),
                 confidence=float(area.get("confidence", 0.0)),
                 source_refs_json=to_json(area.get("source_refs", [])),
             )
@@ -355,7 +357,7 @@ class ProjectEvaluationRepository:
         self, evaluation_id: str, questions: list[dict[str, Any]]
     ) -> list[InterviewQuestionRead]:
         if self.has_sessions(evaluation_id):
-            raise RuntimeError("인터뷰가 시작된 평가는 질문을 교체할 수 없습니다.")
+            raise RuntimeError("검증가 시작된 평가는 질문을 교체할 수 없습니다.")
         for question in questions:
             _validate_question_source_refs(question)
         self.session.execute(
@@ -730,9 +732,9 @@ class ProjectEvaluationRepository:
             summary=row.summary,
             tech_stack=from_json(row.tech_stack_json, []),
             features=from_json(row.features_json, []),
-            architecture_notes=from_json(row.architecture_notes_json, []),
-            data_flow=from_json(row.data_flow_json, []),
-            risk_points=from_json(row.risk_points_json, []),
+            architecture=from_json(row.architecture_json, {}) or {},
+            student_implementation_risks=from_json(row.student_risks_json, []),
+            structural_facts=from_json(row.structural_facts_json, {}) or {},
             question_targets=from_json(row.question_targets_json, []),
             rag_status=from_json(row.rag_status_json, {}),
             areas=[self.to_area_read(area) for area in areas],
@@ -745,6 +747,8 @@ class ProjectEvaluationRepository:
             evaluation_id=row.evaluation_id,
             name=row.name,
             summary=row.summary,
+            role_in_project=row.role_in_project,
+            key_concerns=from_json(row.key_concerns_json, []),
             confidence=row.confidence,
             source_refs=refs_from_json(row.source_refs_json),
         )

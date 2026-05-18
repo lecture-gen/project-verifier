@@ -245,7 +245,7 @@ def evaluation_id() -> str:
         "/api/project-evaluations",
         json={
             "project_name": "테스트 프로젝트",
-            "candidate_name": "테스트 지원자",
+            "candidate_name": "테스트 학생",
             "description": "FastAPI 기반 REST API",
             "room_name": "테스트 방",
             "room_password": "room-pass",
@@ -326,7 +326,7 @@ def test_create_evaluation_with_question_policy_uses_largest_remainder_distribut
         "/api/project-evaluations",
         json={
             "project_name": "질문 정책 프로젝트",
-            "candidate_name": "정책 지원자",
+            "candidate_name": "정책 학생",
             "description": "Bloom 비율 배분 검증",
             "room_name": "정책 방",
             "room_password": "room-pass",
@@ -374,7 +374,7 @@ def test_create_evaluation_question_policy_distributes_by_largest_remainder() ->
         "/api/project-evaluations",
         json={
             "project_name": "비율 배분 프로젝트",
-            "candidate_name": "비율 지원자",
+            "candidate_name": "비율 학생",
             "description": "소수점 잔여 큰 순서와 Bloom 순서 동률 검증",
             "room_name": "비율 방",
             "room_password": "room-pass",
@@ -440,7 +440,7 @@ def test_create_evaluation_accepts_question_count_policy_boundaries(
         "/api/project-evaluations",
         json={
             "project_name": "경계 문항 수 프로젝트",
-            "candidate_name": "정책 지원자",
+            "candidate_name": "정책 학생",
             "description": "문항 수 정책 경계값 검증",
             "room_name": "경계 문항 수 방",
             "room_password": "room-pass",
@@ -465,7 +465,7 @@ def test_create_evaluation_rejects_question_count_outside_policy_range(
         "/api/project-evaluations",
         json={
             "project_name": "잘못된 문항 수 프로젝트",
-            "candidate_name": "정책 지원자",
+            "candidate_name": "정책 학생",
             "description": "정책 문항 수 범위 검증",
             "room_name": "문항 수 오류 방",
             "room_password": "room-pass",
@@ -485,7 +485,7 @@ def test_create_evaluation_rejects_all_zero_bloom_ratios() -> None:
         "/api/project-evaluations",
         json={
             "project_name": "잘못된 정책 프로젝트",
-            "candidate_name": "정책 지원자",
+            "candidate_name": "정책 학생",
             "description": "모든 Bloom 비율 0 검증",
             "room_name": "오류 방",
             "room_password": "room-pass",
@@ -519,7 +519,7 @@ def test_create_evaluation_rejects_malformed_bloom_ratios(
         "/api/project-evaluations",
         json={
             "project_name": "잘못된 비율 프로젝트",
-            "candidate_name": "정책 지원자",
+            "candidate_name": "정책 학생",
             "description": "Bloom 비율 mapping 검증",
             "room_name": "비율 오류 방",
             "room_password": "room-pass",
@@ -740,7 +740,7 @@ def test_generate_questions_follows_requested_total_count_and_bloom_distribution
         "/api/project-evaluations",
         json={
             "project_name": "질문 생성 정책 프로젝트",
-            "candidate_name": "생성 지원자",
+            "candidate_name": "생성 학생",
             "description": "요청한 문항 수와 Bloom 분포 검증",
             "room_name": "생성 방",
             "room_password": "room-pass",
@@ -805,7 +805,7 @@ def test_generate_questions_supports_twenty_question_policy(
         "/api/project-evaluations",
         json={
             "project_name": "20문항 질문 생성 프로젝트",
-            "candidate_name": "생성 지원자",
+            "candidate_name": "생성 학생",
             "description": "20문항 질문 생성 검증",
             "room_name": "20문항 생성 방",
             "room_password": "room-pass",
@@ -948,7 +948,7 @@ def test_status_blocks_partial_question_set(
 
     join_resp = client.post(
         f"/api/project-evaluations/{evaluation_with_context}/join",
-        json={"participant_name": "테스트 지원자", "room_password": "room-pass"},
+        json={"participant_name": "테스트 학생", "room_password": "room-pass"},
     )
     assert join_resp.status_code == 409
     assert join_resp.json()["detail"]["reason"] == "questions_not_ready"
@@ -958,7 +958,7 @@ def test_generate_questions_after_session_start_is_rejected(evaluation_with_ques
     evaluation_id = evaluation_with_questions
     resp = client.post(
         f"/api/project-evaluations/{evaluation_id}/join",
-        json={"participant_name": "테스트 지원자", "room_password": "room-pass"},
+        json={"participant_name": "테스트 학생", "room_password": "room-pass"},
     )
     assert resp.status_code == 200
 
@@ -1181,7 +1181,7 @@ def test_submit_turn_llm_failure_is_exposed(
 
     resp = client.post(
         f"/api/project-evaluations/{evaluation_id}/join",
-        json={"participant_name": "테스트 지원자", "room_password": "room-pass"},
+        json={"participant_name": "테스트 학생", "room_password": "room-pass"},
     )
     assert resp.status_code == 200
     session = resp.json()["session"]
@@ -1207,7 +1207,7 @@ def test_submit_turn_requires_session_token(evaluation_with_questions: str) -> N
     evaluation_id = evaluation_with_questions
     resp = client.post(
         f"/api/project-evaluations/{evaluation_id}/join",
-        json={"participant_name": "테스트 지원자", "room_password": "room-pass"},
+        json={"participant_name": "테스트 학생", "room_password": "room-pass"},
     )
     assert resp.status_code == 200
     session_id = resp.json()["session"]["id"]
@@ -1230,7 +1230,7 @@ def test_golden_path_session_and_report(evaluation_with_questions: str) -> None:
 
     resp = client.post(
         f"/api/project-evaluations/{evaluation_id}/join",
-        json={"participant_name": "테스트 지원자", "room_password": "room-pass"},
+        json={"participant_name": "테스트 학생", "room_password": "room-pass"},
     )
     assert resp.status_code == 200
     session = resp.json()["session"]
@@ -1277,7 +1277,7 @@ def test_report_llm_failure_does_not_save_report(
     evaluation_id = evaluation_with_questions
     resp = client.post(
         f"/api/project-evaluations/{evaluation_id}/join",
-        json={"participant_name": "테스트 지원자", "room_password": "room-pass"},
+        json={"participant_name": "테스트 학생", "room_password": "room-pass"},
     )
     assert resp.status_code == 200
     session = resp.json()["session"]

@@ -22,9 +22,9 @@ def generate_report_payload(
     if llm is None or not llm.enabled():
         raise RuntimeError("최종 리포트 생성에 필요한 LLM client가 비활성화되었습니다. OPENAI_API_KEY와 평가 모델 설정을 확인하세요.")
     if not questions:
-        raise RuntimeError("최종 리포트 생성에 필요한 인터뷰 질문이 없습니다.")
+        raise RuntimeError("최종 리포트 생성에 필요한 검증 질문이 없습니다.")
     if not turns:
-        raise RuntimeError("최종 리포트 생성에 필요한 인터뷰 답변이 없습니다.")
+        raise RuntimeError("최종 리포트 생성에 필요한 검증 답변이 없습니다.")
     if len(turns) != len(questions):
         raise RuntimeError(
             f"리포트 생성 입력의 질문/답변 수가 일치하지 않습니다. questions={len(questions)}, turns={len(turns)}"

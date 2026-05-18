@@ -159,7 +159,7 @@ export function Stage1Info() {
             name="candidate_name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>지원자 / 팀 라벨</FormLabel>
+                <FormLabel>학생 / 팀 라벨</FormLabel>
                 <FormControl>
                   <Input placeholder="예: 4조" {...field} />
                 </FormControl>
@@ -746,7 +746,7 @@ export function Stage5Summary() {
             value={evaluation?.project_name || info?.project_name}
           />
           <SummaryRow
-            label="지원자 / 팀"
+            label="학생 / 팀"
             value={evaluation?.candidate_name || info?.candidate_name}
           />
           <Separator />

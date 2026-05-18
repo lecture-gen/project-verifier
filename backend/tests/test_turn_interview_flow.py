@@ -148,10 +148,10 @@ def evaluation_with_session(fake_llm: FakeInterviewLlm) -> dict[str, object]:
     create_resp = client.post(
         "/api/project-evaluations",
         json={
-            "project_name": "턴 인터뷰 프로젝트",
-            "candidate_name": "지원자",
-            "description": "턴 단위 인터뷰 테스트",
-            "room_name": "턴 인터뷰 방",
+            "project_name": "턴 검증 프로젝트",
+            "candidate_name": "학생",
+            "description": "턴 단위 검증 테스트",
+            "room_name": "턴 검증 방",
             "room_password": "room-pass",
             "admin_password": "admin-pass",
             "question_policy": {
@@ -203,7 +203,7 @@ def evaluation_with_session(fake_llm: FakeInterviewLlm) -> dict[str, object]:
 
     join_resp = client.post(
         f"/api/project-evaluations/{evaluation_id}/join",
-        json={"participant_name": "지원자", "room_password": "room-pass"},
+        json={"participant_name": "학생", "room_password": "room-pass"},
     )
     assert join_resp.status_code == 200, join_resp.text
     session_data = join_resp.json()["session"]
@@ -430,7 +430,7 @@ def test_stale_question_id_rejects_draft_submission(
         headers=_headers(evaluation_with_session),
         json={
             "mode": "answer",
-            "answer_text": "이제 인터뷰를 끝내겠습니다.",
+            "answer_text": "이제 검증를 끝내겠습니다.",
             "draft_answer": "오래된 질문의 draft 답변입니다.",
             "current_question_id": current_question_id,
         },
@@ -507,7 +507,7 @@ def test_end_exam_intent_marks_remaining_questions_unanswered_and_completes(
         headers=_headers(evaluation_with_session),
         json={
             "mode": "answer",
-            "answer_text": "이제 인터뷰를 끝내겠습니다.",
+            "answer_text": "이제 검증를 끝내겠습니다.",
             "draft_answer": "",
         },
     )
@@ -550,7 +550,7 @@ def test_end_exam_on_later_question_preserves_current_draft_answer(
         headers=_headers(evaluation_with_session),
         json={
             "mode": "answer",
-            "answer_text": "이제 인터뷰를 끝내겠습니다.",
+            "answer_text": "이제 검증를 끝내겠습니다.",
             "draft_answer": "두 번째 질문 draft 답변입니다.",
         },
     )

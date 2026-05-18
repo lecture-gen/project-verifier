@@ -43,8 +43,58 @@ class ProjectAreaRead(BaseModel):
     evaluation_id: str
     name: str
     summary: str
+    role_in_project: str = ""
+    key_concerns: list[str] = Field(default_factory=list)
     confidence: float
     source_refs: list[SourceReference] = Field(default_factory=list)
+
+
+class TechStackItemRead(BaseModel):
+    name: str
+    category: str
+    role_in_project: str
+    evidence_path: str = ""
+
+
+class ArchitectureNodeRead(BaseModel):
+    id: str
+    label: str
+    layer: str
+
+
+class ArchitectureEdgeRead(BaseModel):
+    source: str
+    target: str
+    label: str = ""
+
+
+class ArchitectureRead(BaseModel):
+    style: str = ""
+    summary: str = ""
+    layers: list[str] = Field(default_factory=list)
+    modules: list[str] = Field(default_factory=list)
+    nodes: list[ArchitectureNodeRead] = Field(default_factory=list)
+    edges: list[ArchitectureEdgeRead] = Field(default_factory=list)
+
+
+class StudentImplementationRiskRead(BaseModel):
+    area: str
+    challenge: str
+    why_difficult: str
+    evidence_path: str = ""
+
+
+class StructuralFactsRead(BaseModel):
+    file_count: int = 0
+    code_file_count: int = 0
+    doc_file_count: int = 0
+    total_loc: int = 0
+    test_ratio: float = 0.0
+    language_loc: list[dict[str, Any]] = Field(default_factory=list)
+    file_tree: list[dict[str, Any]] = Field(default_factory=list)
+    dependencies: list[dict[str, Any]] = Field(default_factory=list)
+    entry_point_candidates: list[str] = Field(default_factory=list)
+    readme_outline: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class ExtractedProjectContextRead(BaseModel):
@@ -53,11 +103,13 @@ class ExtractedProjectContextRead(BaseModel):
     id: str
     evaluation_id: str
     summary: str
-    tech_stack: list[str] = Field(default_factory=list)
+    tech_stack: list[TechStackItemRead] = Field(default_factory=list)
     features: list[str] = Field(default_factory=list)
-    architecture_notes: list[str] = Field(default_factory=list)
-    data_flow: list[str] = Field(default_factory=list)
-    risk_points: list[str] = Field(default_factory=list)
+    architecture: ArchitectureRead = Field(default_factory=ArchitectureRead)
+    student_implementation_risks: list[StudentImplementationRiskRead] = Field(
+        default_factory=list
+    )
+    structural_facts: StructuralFactsRead = Field(default_factory=StructuralFactsRead)
     question_targets: list[str] = Field(default_factory=list)
     rag_status: dict[str, Any] = Field(default_factory=dict)
     areas: list[ProjectAreaRead] = Field(default_factory=list)

@@ -322,7 +322,7 @@ class ProjectEvaluationService:
             can_join=False,
             blocked_reason="interview_started" if has_sessions else "questions_required",
             user_message=(
-                "인터뷰가 이미 시작되어 질문을 다시 생성할 수 없습니다."
+                "검증가 이미 시작되어 질문을 다시 생성할 수 없습니다."
                 if has_sessions
                 else "프로젝트 분석과 RAG 인덱싱이 완료되었습니다. 질문 생성을 실행할 수 있습니다."
             ),
@@ -397,7 +397,7 @@ class ProjectEvaluationService:
         if self.repository.has_sessions(evaluation_id):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="인터뷰가 시작된 평가는 다시 분석할 수 없습니다.",
+                detail="검증가 시작된 평가는 다시 분석할 수 없습니다.",
             )
         artifacts = self.repository.list_artifact_rows(evaluation_id)
         rag_status = self._build_rag_status(evaluation_id, artifacts)
@@ -419,9 +419,9 @@ class ProjectEvaluationService:
             summary=str(context["summary"]),
             tech_stack=list(context["tech_stack"]),
             features=list(context["features"]),
-            architecture_notes=list(context["architecture_notes"]),
-            data_flow=list(context["data_flow"]),
-            risk_points=list(context["risk_points"]),
+            architecture=dict(context["architecture"]),
+            student_implementation_risks=list(context["student_implementation_risks"]),
+            structural_facts=dict(context["structural_facts"]),
             question_targets=list(context["question_targets"]),
             areas=list(context["areas"]),
             rag_status=rag_status,
@@ -537,7 +537,7 @@ class ProjectEvaluationService:
         if self.repository.has_sessions(evaluation_id):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="인터뷰가 시작된 평가는 질문을 다시 생성할 수 없습니다.",
+                detail="검증가 시작된 평가는 질문을 다시 생성할 수 없습니다.",
             )
         context_row = self.repository.get_context_row(evaluation_id)
         if context_row is None:
@@ -710,7 +710,7 @@ class ProjectEvaluationService:
             detail={
                 "stage": "join",
                 "reason": "questions_not_ready",
-                "message": "인터뷰를 시작하기 전에 질문 정책에 맞는 질문을 먼저 생성해야 합니다.",
+                "message": "검증를 시작하기 전에 질문 정책에 맞는 질문을 먼저 생성해야 합니다.",
                 "question_count": question_count,
                 "expected_question_count": expected_count,
             },
@@ -738,7 +738,7 @@ class ProjectEvaluationService:
         if session.status.value == "completed":
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="이미 완료된 인터뷰입니다.",
+                detail="이미 완료된 검증입니다.",
             )
         if question.order_index != session.current_question_index:
             raise HTTPException(
@@ -909,7 +909,7 @@ class ProjectEvaluationService:
                 return existing_report
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="이미 완료된 인터뷰입니다.",
+                detail="이미 완료된 검증입니다.",
             )
         questions = self.repository.list_question_rows(evaluation_id)
         turns = self.repository.list_turn_rows(session_id)
@@ -919,7 +919,7 @@ class ProjectEvaluationService:
                 detail={
                     "stage": "report_generation",
                     "reason": "turn_count_mismatch",
-                    "message": "모든 질문에 정확히 한 번씩 답변한 뒤 인터뷰를 완료할 수 있습니다.",
+                    "message": "모든 질문에 정확히 한 번씩 답변한 뒤 검증를 완료할 수 있습니다.",
                     "question_count": len(questions),
                     "turn_count": len(turns),
                 },
@@ -1017,7 +1017,7 @@ class ProjectEvaluationService:
         session_token: str | None = None,
         client_id: str = "local",
     ) -> EvaluationReportRead:
-        """학생 조기 종료. 인터뷰 진행 단계(의도 분류·꼬리질문 등) 없이 남은
+        """학생 조기 종료. 검증 진행 단계(의도 분류·꼬리질문 등) 없이 남은
         질문을 즉시 미응답으로 채우고, 지금까지 수집된 turn 데이터로
         ``complete_session``을 통해 정상 평가 리포트를 생성한다.
         """
@@ -1078,19 +1078,19 @@ class ProjectEvaluationService:
         if session_row is None or session_row.evaluation_id != evaluation_id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="인터뷰 세션을 찾을 수 없습니다.",
+                detail="검증 세션을 찾을 수 없습니다.",
             )
         if not session_row.session_token_hash:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="인터뷰 세션 토큰이 설정되지 않은 기존 세션입니다. 새로 입장하세요.",
+                detail="검증 세션 토큰이 설정되지 않은 기존 세션입니다. 새로 입장하세요.",
             )
         _check_auth_attempt("session", evaluation_id, f"{session_id}:{client_id}")
         if not _verify_password(session_token or "", session_row.session_token_hash):
             _record_auth_failure("session", evaluation_id, f"{session_id}:{client_id}")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="인터뷰 세션 토큰이 올바르지 않습니다.",
+                detail="검증 세션 토큰이 올바르지 않습니다.",
             )
         _clear_auth_failures("session", evaluation_id, f"{session_id}:{client_id}")
         return self.repository.to_session_read(session_row)

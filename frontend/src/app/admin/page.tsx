@@ -17,7 +17,7 @@ const STATUS_LABEL: Record<EvaluationStatus, string> = {
   uploaded: "자료 업로드",
   analyzed: "분석 완료",
   questions_generated: "질문 생성",
-  interviewing: "인터뷰 중",
+  interviewing: "검증 중",
   reported: "리포트 완료",
 };
 

@@ -1,4 +1,4 @@
-// 지원자 입장 폼은 client 인터랙션이지만, evaluationId 는 server 에서 await params 로 받아
+// 학생 입장 폼은 client 인터랙션이지만, evaluationId 는 server 에서 await params 로 받아
 // 안전하게 client 컴포넌트에 prop 으로 넘긴다.
 
 import { JoinForm } from "./join-form";

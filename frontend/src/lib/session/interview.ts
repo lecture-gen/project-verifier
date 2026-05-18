@@ -1,4 +1,4 @@
-// 지원자 인터뷰 세션의 토큰 보관.
+// 학생 검증 세션의 토큰 보관.
 // httpOnly cookie 로만 다루며, 브라우저에서는 직접 읽지 않고 Route Handler 를 통해 set/clear 한다.
 // 서버 컴포넌트는 next/headers 의 cookies() 로 직접 토큰을 읽어 백엔드를 호출한다.
 
@@ -27,7 +27,7 @@ export async function persistInterviewSession(
   if (!response.ok) {
     const text = await response.text().catch(() => "");
     throw new Error(
-      `인터뷰 세션 토큰 저장 실패 (${response.status}): ${text || response.statusText}`,
+      `검증 세션 토큰 저장 실패 (${response.status}): ${text || response.statusText}`,
     );
   }
 }
@@ -41,7 +41,7 @@ export async function clearInterviewSession(sessionId: string): Promise<void> {
   if (!response.ok) {
     const text = await response.text().catch(() => "");
     throw new Error(
-      `인터뷰 세션 토큰 삭제 실패 (${response.status}): ${text || response.statusText}`,
+      `검증 세션 토큰 삭제 실패 (${response.status}): ${text || response.statusText}`,
     );
   }
 }

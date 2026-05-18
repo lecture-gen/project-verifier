@@ -1,4 +1,4 @@
-// 지원자용 리포트 페이지. URL ?sessionId=... 으로 진입한다.
+// 학생용 리포트 페이지. URL ?sessionId=... 으로 진입한다.
 // httpOnly cookie 의 session token 으로 백엔드를 호출. completeSession 은 idempotent 라서
 // 이미 종료된 세션은 기존 리포트를 그대로 반환한다.
 
@@ -32,7 +32,7 @@ export default async function InterviewReportPage({
   if (!sessionId) {
     return (
       <FallbackMessage evaluationId={evaluationId}>
-        세션 정보가 누락되어 리포트를 열 수 없습니다. 인터뷰를 다시 시작해 주세요.
+        세션 정보가 누락되어 리포트를 열 수 없습니다. 검증를 다시 시작해 주세요.
       </FallbackMessage>
     );
   }
@@ -58,11 +58,11 @@ export default async function InterviewReportPage({
     <div className="mx-auto w-full max-w-5xl px-6 py-12">
       <header className="mb-8 space-y-2">
         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-          인터뷰 리포트
+          검증 리포트
         </p>
         <h1 className="font-serif text-3xl leading-tight">결과 요약</h1>
         <p className="text-sm text-muted-foreground">
-          이 리포트는 인터뷰 종료 시점의 데이터를 기반으로 생성됩니다. 필요하면
+          이 리포트는 검증 종료 시점의 데이터를 기반으로 생성됩니다. 필요하면
           관리자에게 추가 확인 질문을 요청하세요.
         </p>
       </header>
@@ -82,7 +82,7 @@ function FallbackMessage({
     <div className="mx-auto flex min-h-[60vh] w-full max-w-2xl flex-col items-center justify-center gap-4 px-6 text-center">
       <p className="text-sm text-muted-foreground">{children}</p>
       <Button asChild variant="outline">
-        <Link href={`/interview/${evaluationId}/join`}>인터뷰 다시 시작</Link>
+        <Link href={`/interview/${evaluationId}/join`}>검증 다시 시작</Link>
       </Button>
     </div>
   );

@@ -3,6 +3,22 @@
 
 import type { components } from "./types.gen";
 import { apiFetch, apiFetchRaw, type ApiAuth } from "./client";
+import type { ExtractedProjectContext } from "./context-types";
+
+export type {
+  Architecture,
+  ArchitectureEdge,
+  ArchitectureNode,
+  DependencyEntry,
+  ExtractedProjectContext,
+  FileTreeNode,
+  LanguageLoc,
+  ProjectAreaContext,
+  ReadmeOutlineEntry,
+  StructuralFacts,
+  StudentImplementationRisk,
+  TechStackItem,
+} from "./context-types";
 
 // ---------- 도메인 타입 alias ----------
 
@@ -20,7 +36,11 @@ export type JoinEvaluationRead = Schemas["JoinEvaluationRead"];
 export type ArtifactUploadResult = Schemas["ArtifactUploadResult"];
 export type ProjectArtifactRead = Schemas["ProjectArtifactRead"];
 
-export type ExtractedProjectContextRead = Schemas["ExtractedProjectContextRead"];
+// ExtractedProjectContextRead 는 백엔드 ProjectContextSchema 가 재정의된 이후의 형태를
+// 따른다. OpenAPI 재생성 전에는 types.gen.ts 가 옛 schema 를 그대로 가지고 있으므로,
+// 신규 필드(architecture, student_implementation_risks, structural_facts 등)는
+// context-types.ts 의 ExtractedProjectContext 타입을 사용한다.
+export type ExtractedProjectContextRead = ExtractedProjectContext;
 
 export type QuestionPolicyUpdate = Schemas["QuestionPolicyUpdate"];
 export type QuestionGenerationPolicy = Schemas["QuestionGenerationPolicy"];

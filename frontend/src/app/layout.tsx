@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Dialearn — 프로젝트 평가",
   description:
-    "지원자가 이 프로젝트를 진짜로 수행했는지 검증하기 위한 인터뷰 운영 콘솔.",
+    "학생가 이 프로젝트를 진짜로 수행했는지 검증하기 위한 검증 운영 콘솔.",
 };
 
 export default function RootLayout({

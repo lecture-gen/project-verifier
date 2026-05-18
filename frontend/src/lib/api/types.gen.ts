@@ -458,7 +458,7 @@ export interface paths {
         };
         /**
          * Redirect To Streamlit Report
-         * @description 인터뷰 완료 후 학생을 Next.js 리포트 페이지로 보내는 경로.
+         * @description 검증 완료 후 학생을 Next.js 리포트 페이지로 보내는 경로.
          *
          *     `interview_session_{session_id}` 쿠키에서 세션 토큰을 읽어
          *     Next.js URL 쿼리에 동봉한다. Next.js Route Handler 가 토큰을
@@ -494,6 +494,48 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ArchitectureEdgeRead */
+        ArchitectureEdgeRead: {
+            /** Source */
+            source: string;
+            /** Target */
+            target: string;
+            /**
+             * Label
+             * @default
+             */
+            label: string;
+        };
+        /** ArchitectureNodeRead */
+        ArchitectureNodeRead: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Layer */
+            layer: string;
+        };
+        /** ArchitectureRead */
+        ArchitectureRead: {
+            /**
+             * Style
+             * @default
+             */
+            style: string;
+            /**
+             * Summary
+             * @default
+             */
+            summary: string;
+            /** Layers */
+            layers?: string[];
+            /** Modules */
+            modules?: string[];
+            /** Nodes */
+            nodes?: components["schemas"]["ArchitectureNodeRead"][];
+            /** Edges */
+            edges?: components["schemas"]["ArchitectureEdgeRead"][];
+        };
         /**
          * ArtifactSourceType
          * @enum {string}
@@ -634,15 +676,13 @@ export interface components {
             /** Summary */
             summary: string;
             /** Tech Stack */
-            tech_stack?: string[];
+            tech_stack?: components["schemas"]["TechStackItemRead"][];
             /** Features */
             features?: string[];
-            /** Architecture Notes */
-            architecture_notes?: string[];
-            /** Data Flow */
-            data_flow?: string[];
-            /** Risk Points */
-            risk_points?: string[];
+            architecture?: components["schemas"]["ArchitectureRead"];
+            /** Student Implementation Risks */
+            student_implementation_risks?: components["schemas"]["StudentImplementationRiskRead"][];
+            structural_facts?: components["schemas"]["StructuralFactsRead"];
             /** Question Targets */
             question_targets?: string[];
             /** Rag Status */
@@ -903,6 +943,13 @@ export interface components {
             name: string;
             /** Summary */
             summary: string;
+            /**
+             * Role In Project
+             * @default
+             */
+            role_in_project: string;
+            /** Key Concerns */
+            key_concerns?: string[];
             /** Confidence */
             confidence: number;
             /** Source Refs */
@@ -1122,6 +1169,66 @@ export interface components {
             /** Chunk Type */
             chunk_type?: string | null;
         };
+        /** StructuralFactsRead */
+        StructuralFactsRead: {
+            /**
+             * File Count
+             * @default 0
+             */
+            file_count: number;
+            /**
+             * Code File Count
+             * @default 0
+             */
+            code_file_count: number;
+            /**
+             * Doc File Count
+             * @default 0
+             */
+            doc_file_count: number;
+            /**
+             * Total Loc
+             * @default 0
+             */
+            total_loc: number;
+            /**
+             * Test Ratio
+             * @default 0
+             */
+            test_ratio: number;
+            /** Language Loc */
+            language_loc?: {
+                [key: string]: unknown;
+            }[];
+            /** File Tree */
+            file_tree?: {
+                [key: string]: unknown;
+            }[];
+            /** Dependencies */
+            dependencies?: {
+                [key: string]: unknown;
+            }[];
+            /** Entry Point Candidates */
+            entry_point_candidates?: string[];
+            /** Readme Outline */
+            readme_outline?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** StudentImplementationRiskRead */
+        StudentImplementationRiskRead: {
+            /** Area */
+            area: string;
+            /** Challenge */
+            challenge: string;
+            /** Why Difficult */
+            why_difficult: string;
+            /**
+             * Evidence Path
+             * @default
+             */
+            evidence_path: string;
+        };
         /** StudentInterviewStateRead */
         StudentInterviewStateRead: {
             /** Session Id */
@@ -1138,6 +1245,20 @@ export interface components {
              * @default false
              */
             is_completed: boolean;
+        };
+        /** TechStackItemRead */
+        TechStackItemRead: {
+            /** Name */
+            name: string;
+            /** Category */
+            category: string;
+            /** Role In Project */
+            role_in_project: string;
+            /**
+             * Evidence Path
+             * @default
+             */
+            evidence_path: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -1217,9 +1338,7 @@ export interface operations {
     update_question_policy_api_project_evaluations__evaluation_id__question_policy_patch: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-password"?: string | null;
-            };
+            header?: never;
             path: {
                 evaluation_id: string;
             };
@@ -1254,9 +1373,7 @@ export interface operations {
     get_evaluation_api_project_evaluations__evaluation_id__get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-password"?: string | null;
-            };
+            header?: never;
             path: {
                 evaluation_id: string;
             };
@@ -1287,9 +1404,7 @@ export interface operations {
     get_evaluation_status_api_project_evaluations__evaluation_id__status_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-password"?: string | null;
-            };
+            header?: never;
             path: {
                 evaluation_id: string;
             };
@@ -1355,9 +1470,7 @@ export interface operations {
     upload_zip_artifact_api_project_evaluations__evaluation_id__artifacts_zip_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-password"?: string | null;
-            };
+            header?: never;
             path: {
                 evaluation_id: string;
             };
@@ -1392,9 +1505,7 @@ export interface operations {
     list_artifacts_api_project_evaluations__evaluation_id__artifacts_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-password"?: string | null;
-            };
+            header?: never;
             path: {
                 evaluation_id: string;
             };
@@ -1425,9 +1536,7 @@ export interface operations {
     extract_context_api_project_evaluations__evaluation_id__extract_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-password"?: string | null;
-            };
+            header?: never;
             path: {
                 evaluation_id: string;
             };
@@ -1458,9 +1567,7 @@ export interface operations {
     get_context_api_project_evaluations__evaluation_id__context_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-password"?: string | null;
-            };
+            header?: never;
             path: {
                 evaluation_id: string;
             };
@@ -1491,9 +1598,7 @@ export interface operations {
     generate_questions_api_project_evaluations__evaluation_id__questions_generate_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-password"?: string | null;
-            };
+            header?: never;
             path: {
                 evaluation_id: string;
             };
@@ -1525,7 +1630,6 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                "x-admin-password"?: string | null;
                 "x-session-id"?: string | null;
                 "x-session-token"?: string | null;
             };
@@ -1559,9 +1663,7 @@ export interface operations {
     create_session_api_project_evaluations__evaluation_id__sessions_post: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-password"?: string | null;
-            };
+            header?: never;
             path: {
                 evaluation_id: string;
             };
@@ -1915,9 +2017,7 @@ export interface operations {
     get_latest_report_api_project_evaluations__evaluation_id__reports_latest_get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-password"?: string | null;
-            };
+            header?: never;
             path: {
                 evaluation_id: string;
             };
@@ -1948,9 +2048,7 @@ export interface operations {
     get_report_api_project_evaluations__evaluation_id__reports__report_id__get: {
         parameters: {
             query?: never;
-            header?: {
-                "x-admin-password"?: string | null;
-            };
+            header?: never;
             path: {
                 evaluation_id: string;
                 report_id: string;

@@ -49,6 +49,13 @@ def ensure_schema_columns(engine: Engine) -> None:
         },
         "extracted_project_contexts": {
             "rag_status_json": "TEXT NOT NULL DEFAULT '{}'",
+            "architecture_json": "TEXT NOT NULL DEFAULT '{}'",
+            "student_risks_json": "TEXT NOT NULL DEFAULT '[]'",
+            "structural_facts_json": "TEXT NOT NULL DEFAULT '{}'",
+        },
+        "project_areas": {
+            "role_in_project": "TEXT NOT NULL DEFAULT ''",
+            "key_concerns_json": "TEXT NOT NULL DEFAULT '[]'",
         },
         "interview_questions": {
             "verification_focus": "TEXT NOT NULL DEFAULT ''",

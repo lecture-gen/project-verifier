@@ -1,4 +1,4 @@
-// 지원자 인터뷰 세션 토큰을 httpOnly cookie 로 set/clear 하는 Route Handler.
+// 학생 검증 세션 토큰을 httpOnly cookie 로 set/clear 하는 Route Handler.
 // 백엔드 라우터는 `interview_session_{session_id}` cookie 또는 X-Session-Token 헤더를 본다.
 // 우리는 cookie 만 신뢰하고, 클라이언트는 이 핸들러를 통해서만 토큰을 쓸 수 있다.
 

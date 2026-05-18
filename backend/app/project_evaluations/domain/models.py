@@ -6,10 +6,16 @@ callers working while new code should import directly from the topic modules.
 """
 
 from app.project_evaluations.domain.artifact import (
+    ArchitectureEdgeRead,
+    ArchitectureNodeRead,
+    ArchitectureRead,
     ArtifactUploadResult,
     ExtractedProjectContextRead,
     ProjectAreaRead,
     ProjectArtifactRead,
+    StructuralFactsRead,
+    StudentImplementationRiskRead,
+    TechStackItemRead,
 )
 from app.project_evaluations.domain.bloom import (
     QuestionGenerationPolicy,
@@ -64,6 +70,9 @@ from app.project_evaluations.domain.session import (
 )
 
 __all__ = [
+    "ArchitectureEdgeRead",
+    "ArchitectureNodeRead",
+    "ArchitectureRead",
     "ArtifactRole",
     "ArtifactSourceType",
     "ArtifactStatus",
@@ -103,7 +112,10 @@ __all__ = [
     "RubricCriterion",
     "RubricScoreItem",
     "SourceReference",
+    "StructuralFactsRead",
+    "StudentImplementationRiskRead",
     "StudentInterviewStateRead",
+    "TechStackItemRead",
     "_normalize_bloom_ratios",
     "distribute_bloom_questions",
     "normalize_bloom_level",

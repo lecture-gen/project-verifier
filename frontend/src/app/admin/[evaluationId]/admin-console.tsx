@@ -26,6 +26,14 @@ import type {
   InterviewQuestionRead,
   ProjectArtifactRead,
 } from "@/lib/api/endpoints";
+import { AreasGrid } from "@/components/wizard/context/AreasGrid";
+import { ArchitectureCanvas } from "@/components/wizard/context/ArchitectureCanvas";
+import { DependencyList } from "@/components/wizard/context/DependencyList";
+import { FileTreeView } from "@/components/wizard/context/FileTreeView";
+import { ReadmeOutlineList } from "@/components/wizard/context/ReadmeOutlineList";
+import { StructuralFactsPanel } from "@/components/wizard/context/StructuralFactsPanel";
+import { StudentRisksCards } from "@/components/wizard/context/StudentRisksCards";
+import { TechStackTable } from "@/components/wizard/context/TechStackTable";
 
 const TABS = ["overview", "artifacts", "questions", "report"] as const;
 type AdminTab = (typeof TABS)[number];
@@ -77,7 +85,7 @@ export function AdminConsole({ evaluationId }: AdminConsoleProps) {
             target="_blank"
             rel="noreferrer"
           >
-            <ExternalLink />지원자 입장 페이지 열기
+            <ExternalLink />학생 입장 페이지 열기
           </Link>
         </Button>
       </header>
@@ -144,7 +152,7 @@ function OverviewTab({ evaluationId }: { evaluationId: string }) {
             <>
               <MetaRow label="방 이름" value={evaluation.room_name} />
               <MetaRow label="프로젝트" value={evaluation.project_name} />
-              <MetaRow label="지원자" value={evaluation.candidate_name} />
+              <MetaRow label="학생" value={evaluation.candidate_name} />
               <MetaRow
                 label="질문 정책"
                 value={`총 ${evaluation.question_policy.total_question_count} 문항`}
@@ -275,42 +283,56 @@ function ProjectInfoCard({
           업로드된 자료 {artifacts.length}건을 기반으로 한 분석 결과입니다.
         </p>
       </CardHeader>
-      <CardContent className="space-y-5 text-sm">
+      <CardContent className="space-y-6 text-sm">
         {context ? (
           <>
             {context.summary && (
-              <p className="whitespace-pre-wrap leading-relaxed">{context.summary}</p>
+              <AdminSection title="프로젝트 요약">
+                <p className="whitespace-pre-wrap leading-relaxed">
+                  {context.summary}
+                </p>
+              </AdminSection>
             )}
-            {/* #4: 한 줄 전체를 사용하는 grid-cols-1 */}
-            <div className="grid grid-cols-1 gap-4">
-              <ContextList title="기술 스택" items={context.tech_stack ?? []} />
-              <ContextList title="주요 기능" items={context.features ?? []} />
-              <ContextList
-                title="아키텍처 노트"
-                items={context.architecture_notes ?? []}
+            <AdminSection title="기술 스택">
+              <TechStackTable items={context.tech_stack ?? []} />
+            </AdminSection>
+            <AdminSection title="아키텍처">
+              <ArchitectureCanvas architecture={context.architecture} />
+            </AdminSection>
+            <AdminSection title="주요 기능">
+              <AdminFeaturesList items={context.features ?? []} />
+            </AdminSection>
+            <AdminSection title="프로젝트 영역">
+              <AreasGrid areas={context.areas ?? []} />
+            </AdminSection>
+            <AdminSection title="학생이 부딪혔을 만한 구현 난점">
+              <StudentRisksCards
+                risks={context.student_implementation_risks ?? []}
               />
-              <ContextList title="리스크 포인트" items={context.risk_points ?? []} />
-            </div>
-            {context.areas && context.areas.length > 0 && (
-              <div>
-                <h3 className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  프로젝트 영역
-                </h3>
-                <ul className="space-y-2">
-                  {context.areas.map((area) => (
-                    <li
-                      key={area.id}
-                      className="rounded border border-border/60 px-3 py-2 text-sm"
-                    >
-                      <span className="font-medium">{area.name}</span>
-                      {area.summary && (
-                        <span className="text-muted-foreground"> — {area.summary}</span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+            </AdminSection>
+            <AdminSection title="구조 통계">
+              <StructuralFactsPanel facts={context.structural_facts} />
+            </AdminSection>
+            <details className="rounded border border-border/60">
+              <summary className="cursor-pointer px-3 py-2 text-sm font-medium">
+                파일 트리 · 의존성 · README 헤더 보기
+              </summary>
+              <div className="space-y-5 border-t border-border/60 px-3 py-3">
+                <AdminSection title="파일 트리" small>
+                  <FileTreeView tree={context.structural_facts?.file_tree ?? []} />
+                </AdminSection>
+                <AdminSection title="의존성 목록" small>
+                  <DependencyList
+                    items={context.structural_facts?.dependencies ?? []}
+                  />
+                </AdminSection>
+                <AdminSection title="README 헤더" small>
+                  <ReadmeOutlineList
+                    entries={context.structural_facts?.readme_outline ?? []}
+                  />
+                </AdminSection>
               </div>
-            )}
+            </details>
           </>
         ) : loading ? (
           <p className="text-muted-foreground">불러오는 중…</p>
@@ -324,22 +346,46 @@ function ProjectInfoCard({
   );
 }
 
-function ContextList({ title, items }: { title: string; items: string[] }) {
-  if (items.length === 0) return null;
+function AdminSection({
+  title,
+  children,
+  small = false,
+}: {
+  title: string;
+  children: React.ReactNode;
+  small?: boolean;
+}) {
   return (
-    <div className="rounded border border-border/60 p-3">
-      <h3 className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+    <section>
+      <h3
+        className={`mb-2 uppercase tracking-[0.18em] text-muted-foreground ${
+          small ? "text-[10px]" : "text-xs"
+        }`}
+      >
         {title}
       </h3>
-      <ul className="space-y-1 text-sm">
-        {items.map((item, index) => (
-          <li key={index} className="flex gap-2">
-            <span className="text-muted-foreground">·</span>
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
+      {children}
+    </section>
+  );
+}
+
+function AdminFeaturesList({ items }: { items: string[] }) {
+  if (items.length === 0) {
+    return (
+      <p className="rounded border border-dashed border-border/60 px-3 py-2 text-xs text-muted-foreground">
+        식별된 사용자 시각의 제품 기능이 없습니다.
+      </p>
+    );
+  }
+  return (
+    <ul className="space-y-1.5">
+      {items.map((item, index) => (
+        <li key={index} className="flex gap-2 text-sm">
+          <span className="text-muted-foreground">·</span>
+          <span>{item}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -501,7 +547,7 @@ function ReportTab({ evaluationId }: { evaluationId: string }) {
   if (!report) {
     return (
       <p className="rounded-md border border-dashed border-border/60 px-4 py-10 text-center text-sm text-muted-foreground">
-        아직 생성된 리포트가 없습니다. 인터뷰가 끝나면 자동으로 채워집니다.
+        아직 생성된 리포트가 없습니다. 검증가 끝나면 자동으로 채워집니다.
       </p>
     );
   }

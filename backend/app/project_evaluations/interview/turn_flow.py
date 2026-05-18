@@ -284,7 +284,7 @@ class InterviewTurnFlow:
         )
         return InterviewTurnFlowResponse(
             status=InterviewTurnFlowStatus.COMPLETED,
-            message="인터뷰를 조기 종료하고 남은 질문을 미응답으로 처리했습니다.",
+            message="검증를 조기 종료하고 남은 질문을 미응답으로 처리했습니다.",
             next_mode=None,
             report=report,
         )

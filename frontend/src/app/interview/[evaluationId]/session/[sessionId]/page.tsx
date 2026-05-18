@@ -1,4 +1,4 @@
-// 지원자 인터뷰 진행 페이지의 server entry.
+// 학생 검증 진행 페이지의 server entry.
 // httpOnly cookie 에서 session token 을 읽어 백엔드 상태를 SSR fetch 한 뒤, 클라이언트 runner 에
 // 토큰과 초기 state 를 props 로 넘긴다.
 

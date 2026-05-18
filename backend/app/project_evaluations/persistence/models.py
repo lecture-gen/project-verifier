@@ -59,11 +59,9 @@ class ExtractedProjectContextRow(Base):
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     tech_stack_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     features_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
-    architecture_notes_json: Mapped[str] = mapped_column(
-        Text, nullable=False, default="[]"
-    )
-    data_flow_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
-    risk_points_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    architecture_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    student_risks_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    structural_facts_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     question_targets_json: Mapped[str] = mapped_column(
         Text, nullable=False, default="[]"
     )
@@ -82,6 +80,8 @@ class ProjectAreaRow(Base):
     )
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
+    role_in_project: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    key_concerns_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     source_refs_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
 

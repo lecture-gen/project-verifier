@@ -1,11 +1,11 @@
-"""학생 인터뷰 진입 라우터.
+"""학생 검증 진입 라우터.
 
 기본 진입 경로는 단계형(HTTP) 평가 화면이다.
 - `/interview/{eval}/{session}/open` — 세션 토큰 입력 → 쿠키 설정 → 단계형 화면으로 redirect
-- `/interview/{eval}/{session}` — 단계형 인터뷰 화면 (HTTP API 사용)
+- `/interview/{eval}/{session}` — 단계형 검증 화면 (HTTP API 사용)
 - `/interview/{eval}/{session}/voice` — 음성 보조 화면 (선택). 평가 상태머신은
   여전히 HTTP 단계형 core가 권한자다. 음성 transport가 실패해도 단계형 화면에서
-  인터뷰를 이어 갈 수 있다.
+  검증를 이어 갈 수 있다.
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ _STAGED_HTML = """\
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>프로젝트 평가 인터뷰</title>
+<title>프로젝트 평가 검증</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: #0f172a; color: #e2e8f0; font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; padding: 24px 16px; display: flex; flex-direction: column; align-items: center; }
@@ -87,7 +87,7 @@ ul.bullet li { font-size: .88rem; color: #cbd5e1; line-height: 1.5; }
 </style>
 </head>
 <body>
-<h1>프로젝트 평가 인터뷰</h1>
+<h1>프로젝트 평가 검증</h1>
 <p class="subtitle">질문에 텍스트로 답변하세요. 단계별로 진행됩니다.</p>
 
 <div id="main">
@@ -106,13 +106,13 @@ ul.bullet li { font-size: .88rem; color: #cbd5e1; line-height: 1.5; }
   <form id="answer-form">
     <textarea id="answer" placeholder="여기에 답변을 입력하세요" required></textarea>
     <div class="actions">
-      <button type="button" class="danger" id="end-btn">인터뷰 종료</button>
+      <button type="button" class="danger" id="end-btn">검증 종료</button>
       <div class="right">
         <button type="submit" class="primary" id="submit-btn">답변 제출</button>
       </div>
     </div>
   </form>
-  <p class="muted">음성으로 진행하려면 <a class="voice-link" id="voice-link" href="#">음성 인터뷰 화면</a>으로 이동하세요. 음성 transport가 실패해도 이 단계형 화면에서 평가를 이어갈 수 있습니다.</p>
+  <p class="muted">음성으로 진행하려면 <a class="voice-link" id="voice-link" href="#">음성 검증 화면</a>으로 이동하세요. 음성 transport가 실패해도 이 단계형 화면에서 평가를 이어갈 수 있습니다.</p>
 </div>
 
 <div id="report-view"></div>
@@ -329,7 +329,7 @@ document.getElementById('answer-form').addEventListener('submit', async (event) 
 });
 
 document.getElementById('end-btn').addEventListener('click', async () => {
-  if (!confirm('인터뷰를 종료하시겠습니까? 남은 질문은 미응답으로 처리되고, 지금까지의 답변으로 리포트가 작성됩니다.')) {
+  if (!confirm('검증를 종료하시겠습니까? 남은 질문은 미응답으로 처리되고, 지금까지의 답변으로 리포트가 작성됩니다.')) {
     return;
   }
   showError('');
@@ -358,7 +358,7 @@ _VOICE_HTML = r'''
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>음성 인터뷰 (Push-to-Talk)</title>
+<title>음성 검증 (Push-to-Talk)</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { background: #0f172a; color: #e2e8f0; font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px 16px; }
@@ -443,7 +443,7 @@ audio { display: none; }
 </style>
 </head>
 <body>
-<h1>음성 인터뷰</h1>
+<h1>음성 검증</h1>
 <p class="subtitle">버튼을 눌러 녹음하고, 전사 결과를 확인한 뒤 제출하세요. 텍스트로 진행하려면 <a class="notice" id="staged-link" href="#">단계형 화면</a>으로 이동할 수 있습니다.</p>
 
 <div id="main">
@@ -481,7 +481,7 @@ audio { display: none; }
     <textarea id="answer" placeholder="여기에 전사된 답변이 표시됩니다. 필요 시 직접 수정한 뒤 '확정 제출'을 눌러주세요."></textarea>
     <div class="actions">
       <div class="left">
-        <button type="button" class="danger" id="end-btn">인터뷰 종료</button>
+        <button type="button" class="danger" id="end-btn">검증 종료</button>
         <button type="button" class="ghost" id="skip-btn">이 문제 건너뛰기</button>
       </div>
       <div class="right">
@@ -789,7 +789,7 @@ async function playTts(text) {
   if (!text) {
     return;
   }
-  setStatus('speaking', '인터뷰어가 말하는 중...');
+  setStatus('speaking', '검증어가 말하는 중...');
   setButtons({ canRecord: true, canRerecord: false, canSubmit: false, canReplay: false, canSkip: false, canEnd: true });
   syncSubmitFromText();
   const tStart = performance.now();
@@ -1097,7 +1097,7 @@ document.getElementById('record-btn').addEventListener('click', () => {
     stopRecording();
     return;
   }
-  // 인터뷰어 TTS 재생 중에 학생이 녹음을 시작하면 TTS는 즉시 중단한다.
+  // 검증어 TTS 재생 중에 학생이 녹음을 시작하면 TTS는 즉시 중단한다.
   if (!ttsAudio.paused) {
     stopTtsPlayback();
   }
@@ -1130,7 +1130,7 @@ document.getElementById('skip-btn').addEventListener('click', async () => {
 });
 
 document.getElementById('end-btn').addEventListener('click', async () => {
-  if (!confirm('인터뷰를 종료하시겠습니까? 남은 질문은 미응답으로 처리되고, 지금까지의 답변으로 리포트가 작성됩니다.')) {
+  if (!confirm('검증를 종료하시겠습니까? 남은 질문은 미응답으로 처리되고, 지금까지의 답변으로 리포트가 작성됩니다.')) {
     return;
   }
   if (!ttsAudio.paused) {
@@ -1145,8 +1145,8 @@ document.getElementById('end-btn').addEventListener('click', async () => {
   try {
     await apiJson('POST', '/abort', undefined);
   } catch (err) {
-    showError('인터뷰 종료 실패: ' + (err.message || err));
-    setStatus('error', '인터뷰 종료 처리에 실패했습니다.');
+    showError('검증 종료 실패: ' + (err.message || err));
+    setStatus('error', '검증 종료 처리에 실패했습니다.');
     setButtons({ canRecord: false, canRerecord: false, canSubmit: false, canReplay: false, canSkip: false, canEnd: true });
     return;
   }
@@ -1181,11 +1181,11 @@ async def open_interview_page(evaluation_id: str, session_id: str) -> str:
     return (
         "<!DOCTYPE html><html lang='ko'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width, initial-scale=1'>"
-        "<title>인터뷰 입장</title></head><body>"
+        "<title>검증 입장</title></head><body>"
         "<form method='post'>"
-        "<p>인터뷰 세션을 시작합니다.</p>"
+        "<p>검증 세션을 시작합니다.</p>"
         "<input type='password' name='session_token' placeholder='세션 토큰' required autofocus>"
-        "<button type='submit'>인터뷰 시작</button>"
+        "<button type='submit'>검증 시작</button>"
         "</form></body></html>"
     )
 
@@ -1268,7 +1268,7 @@ async def redirect_to_streamlit_report(
     evaluation_id: str,
     session_id: str,
 ) -> RedirectResponse:
-    """인터뷰 완료 후 학생을 Next.js 리포트 페이지로 보내는 경로.
+    """검증 완료 후 학생을 Next.js 리포트 페이지로 보내는 경로.
 
     `interview_session_{session_id}` 쿠키에서 세션 토큰을 읽어
     Next.js URL 쿼리에 동봉한다. Next.js Route Handler 가 토큰을
@@ -1278,7 +1278,7 @@ async def redirect_to_streamlit_report(
     if not session_token:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="인터뷰 세션 토큰이 없습니다. 다시 입장해 주세요.",
+            detail="검증 세션 토큰이 없습니다. 다시 입장해 주세요.",
         )
     settings = request.app.state.settings
     base_url = settings.public_web_base_url.rstrip("/")

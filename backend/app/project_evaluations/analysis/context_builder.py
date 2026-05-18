@@ -35,27 +35,39 @@ def build_project_context(
 def _build_with_llm(
     artifacts: list[ProjectArtifactRow], llm: LlmClient
 ) -> dict[str, object]:
+    from app.project_evaluations.analysis.structural_extractor import (
+        extract_structural_facts,
+    )
+
     snippets = _representative_snippets(artifacts)
-    messages = build_context_prompt(snippets)
-    result: ProjectContextSchema = llm.parse(messages, ProjectContextSchema, max_tokens=4000)
+    structural_facts = extract_structural_facts(artifacts)
+    messages = build_context_prompt(snippets, structural_facts=structural_facts)
+    result: ProjectContextSchema = llm.parse(
+        messages, ProjectContextSchema, max_tokens=6000
+    )
     areas = [
         {
             "name": area.name,
             "summary": area.summary,
+            "role_in_project": area.role_in_project,
+            "key_concerns": list(area.key_concerns),
             "confidence": area.confidence,
-            "source_refs": _match_source_refs(area.name, artifacts) or _representative_source_refs(artifacts),
+            "source_refs": _match_source_refs(area.name, artifacts)
+            or _representative_source_refs(artifacts),
         }
         for area in result.areas
     ]
     return {
         "summary": result.summary,
-        "tech_stack": result.tech_stack,
-        "features": result.features,
-        "architecture_notes": result.architecture_notes,
-        "data_flow": result.data_flow,
-        "risk_points": result.risk_points,
-        "question_targets": result.question_targets,
+        "tech_stack": [item.model_dump() for item in result.tech_stack],
+        "features": list(result.features),
+        "architecture": result.architecture.model_dump(),
+        "student_implementation_risks": [
+            risk.model_dump() for risk in result.student_implementation_risks
+        ],
+        "question_targets": list(result.question_targets),
         "areas": areas,
+        "structural_facts": structural_facts,
     }
 
 

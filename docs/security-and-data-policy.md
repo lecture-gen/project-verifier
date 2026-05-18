@@ -125,7 +125,7 @@ data/qdrant/ 또는 Qdrant container    # vector payload와 embedding
 - 추출된 텍스트와 artifact metadata
 - RAG chunk metadata와 embedding
 - 질문과 source refs
-- 인터뷰 turn transcript
+- 검증 turn transcript
 - 루브릭 점수
 - 최종 리포트
 
@@ -141,7 +141,7 @@ data/qdrant/ 또는 Qdrant container    # vector payload와 embedding
 
 ## 민감정보 처리
 
-지원자가 제출한 프로젝트 zip에 비밀값이나 개인정보가 들어올 수 있다. MVP는 이를 완전히 탐지한다고 가정하지 않는다.
+학생가 제출한 프로젝트 zip에 비밀값이나 개인정보가 들어올 수 있다. MVP는 이를 완전히 탐지한다고 가정하지 않는다.
 
 정책:
 
