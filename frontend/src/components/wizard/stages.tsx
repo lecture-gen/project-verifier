@@ -1,8 +1,8 @@
 "use client";
 
-// 단일 페이지 마법사의 5개 stage 본문을 한곳에 모아 둔다.
-// 각 stage 는 WizardShell 안에 자기 폼/콘텐츠를 렌더하고,
-// 완료 시 wizard state(markStepCompleted/setEvaluation/...) 를 갱신해 다음 stage 로 슬라이드 전환을 유도한다.
+// 단일 페이지 마법사의 5개 stage 본문. 각 stage 는 자기 폼/콘텐츠만 렌더하고,
+// 우측 하단 [다음 →] 버튼은 wizard state 의 setAdvance(...) 로 등록한 핸들러가 처리한다.
+// 외곽 셸(좌측 rail, outcome, 제목, nav)은 WizardShell + page 가 책임진다.
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Copy } from "lucide-react";
@@ -71,7 +71,7 @@ const infoSchema = z.object({
 type InfoFormValues = z.infer<typeof infoSchema>;
 
 export function Stage1Info() {
-  const { info, setEvaluation } = useWizardState();
+  const { info, setEvaluation, setAdvance } = useWizardState();
   const mutation = useCreateEvaluation();
 
   const form = useForm<InfoFormValues>({
@@ -107,26 +107,21 @@ export function Stage1Info() {
     }
   }
 
+  // 우측 하단 [다음 →] 가 폼 submit 을 트리거하도록 advance 등록.
+  // RHF 의 handleSubmit 은 validation 실패 시 자동으로 폼 에러를 노출한다.
+  useEffect(() => {
+    setAdvance({
+      onAdvance: form.handleSubmit(onSubmit),
+      canAdvance: !mutation.isPending,
+      busy: mutation.isPending,
+      label: mutation.isPending ? "방을 만드는 중…" : "다음 단계",
+    });
+    return () => setAdvance(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mutation.isPending, setAdvance]);
+
   return (
-    <WizardShell
-      step={1}
-      title="방을 정의하세요."
-      description={
-        <p>
-          방 이름, 프로젝트 정보, 지원자 라벨을 입력합니다. 학생은 평가 ID와 학생
-          입장 비밀번호로 접속하며, 두 값은 마지막 단계에서 함께 공유됩니다.
-        </p>
-      }
-      actions={
-        <Button
-          type="submit"
-          form="wizard-step-1-form"
-          disabled={mutation.isPending}
-        >
-          {mutation.isPending ? "방을 만드는 중…" : "다음 단계"}
-        </Button>
-      }
-    >
+    <WizardShell step={1}>
       <Form {...form}>
         <form
           id="wizard-step-1-form"
@@ -217,15 +212,26 @@ export function Stage1Info() {
 // =====================================================================
 
 export function Stage2Upload() {
-  const { evaluationId, markStepCompleted, goToStep } = useWizardState();
+  const { evaluationId, markStepCompleted, setAdvance } = useWizardState();
+  // 분석이 끝나면 자동으로 다음 step 으로 넘어가지 않고, 사용자가 결과를 확인한 뒤
+  // 직접 [다음 →] 을 눌러야 진행되도록 로컬 플래그로 게이트한다.
+  const [analyzed, setAnalyzed] = useState(false);
+
+  useEffect(() => {
+    setAdvance({
+      onAdvance: () => {
+        if (!analyzed) return;
+        markStepCompleted(2);
+      },
+      canAdvance: analyzed,
+      label: "다음 단계",
+    });
+    return () => setAdvance(null);
+  }, [analyzed, markStepCompleted, setAdvance]);
 
   if (!evaluationId) {
     return (
-      <WizardShell
-        step={2}
-        title="자료를 받아 분석합니다."
-        description={<p>방 생성을 먼저 완료해야 합니다.</p>}
-      >
+      <WizardShell step={2}>
         <p className="rounded-md border border-dashed border-border/60 px-4 py-6 text-sm text-muted-foreground">
           1단계에서 방 정보를 입력해 주세요.
         </p>
@@ -234,34 +240,24 @@ export function Stage2Upload() {
   }
 
   return (
-    <WizardShell
-      step={2}
-      title="자료를 받아 분석합니다."
-      description={
-        <>
-          <p>
-            zip 한 개로 코드와 문서를 함께 제출받습니다. 파일을 선택하면 자동으로
-            업로드·분류·분석이 시작됩니다.
-          </p>
-          <p className="mt-3 text-sm">
-            지원 확장자는 zip 내부에서 자동 인식합니다. 최대 50MB / 500개 파일까지
-            받습니다.
-          </p>
-        </>
-      }
-      actions={
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => goToStep(1)}
-        >
-          ← 이전
-        </Button>
-      }
-    >
+    <WizardShell step={2}>
+      <div className="space-y-3 text-sm text-muted-foreground">
+        <p>
+          zip 한 개로 코드와 문서를 함께 제출받습니다. 파일을 선택하면 자동으로
+          업로드·분류·분석이 시작됩니다.
+        </p>
+        <p>
+          지원 확장자는 zip 내부에서 자동 인식합니다. 최대 50MB / 500개 파일까지
+          받습니다.
+        </p>
+        <p>
+          분석이 끝나면 결과를 확인하고 우측 하단 <strong>[다음 단계]</strong> 를
+          눌러 진행하세요.
+        </p>
+      </div>
       <ZipUploadPipeline
         evaluationId={evaluationId}
-        onAnalyzed={() => markStepCompleted(2)}
+        onAnalyzed={() => setAnalyzed(true)}
       />
     </WizardShell>
   );
@@ -282,7 +278,7 @@ export function Stage3Policy() {
     policyDraft,
     setPolicyDraft,
     markStepCompleted,
-    goToStep,
+    setAdvance,
   } = useWizardState();
   const evaluationQuery = useEvaluation(evaluationId);
   const mutation = useUpdateQuestionPolicy(evaluationId ?? "");
@@ -335,36 +331,27 @@ export function Stage3Policy() {
     }
   }
 
+  useEffect(() => {
+    setAdvance({
+      onAdvance: onSubmit,
+      canAdvance: ratioSum > 0 && !mutation.isPending && Boolean(evaluationId),
+      busy: mutation.isPending,
+      label: mutation.isPending ? "저장 중…" : "다음 단계",
+    });
+    return () => setAdvance(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ratioSum, mutation.isPending, evaluationId, total, ratios, setAdvance]);
+
   return (
-    <WizardShell
-      step={3}
-      title="질문 정책을 정의합니다."
-      description={
-        <>
-          <p>
-            총 문항 수와 Bloom 단계별 비율로 질문 분포를 정의합니다. 비율 합이 0이면
-            저장할 수 없습니다.
-          </p>
-          <p className="mt-3 text-sm">
-            동률 잔여 문항은 기억 → 이해 → 적용 → 분석 → 평가 → 창안 순으로 배정됩니다.
-          </p>
-        </>
-      }
-      actions={
-        <>
-          <Button type="button" variant="ghost" onClick={() => goToStep(2)}>
-            ← 이전
-          </Button>
-          <Button
-            type="button"
-            onClick={onSubmit}
-            disabled={mutation.isPending || ratioSum === 0}
-          >
-            {mutation.isPending ? "저장 중…" : "다음 단계"}
-          </Button>
-        </>
-      }
-    >
+    <WizardShell step={3}>
+      <div className="space-y-2 text-sm text-muted-foreground">
+        <p>
+          총 문항 수와 Bloom 단계별 비율로 질문 분포를 정의합니다. 비율 합이 0이면
+          저장할 수 없습니다.
+        </p>
+        <p>동률 잔여 문항은 기억 → 이해 → 적용 → 분석 → 평가 → 창안 순으로 배정됩니다.</p>
+      </div>
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">총 문항 수</CardTitle>
@@ -437,7 +424,7 @@ export function Stage3Policy() {
 // =====================================================================
 
 export function Stage4Questions() {
-  const { evaluationId, markStepCompleted, goToStep } = useWizardState();
+  const { evaluationId, markStepCompleted, setAdvance } = useWizardState();
   const [hasAttemptedGeneration, setHasAttemptedGeneration] = useState(false);
 
   const statusQuery = useEvaluationStatus(evaluationId, {
@@ -459,7 +446,6 @@ export function Stage4Questions() {
   const canGenerate = Boolean(status?.can_generate_questions);
   const hasQuestions = questions.length > 0;
 
-  // #5: 질문 생성 시도 이전에는 차단 사유를 노출하지 않는다.
   const showBlockedReason = Boolean(
     status?.blocked_reason && (hasAttemptedGeneration || hasQuestions),
   );
@@ -474,41 +460,33 @@ export function Stage4Questions() {
     }
   }
 
-  function onNext() {
-    if (!hasQuestions) {
-      toast.error("질문이 1개 이상 저장된 후에 다음 단계로 갈 수 있습니다.");
-      return;
-    }
-    markStepCompleted(4);
-  }
+  useEffect(() => {
+    setAdvance({
+      onAdvance: () => {
+        if (!hasQuestions) {
+          toast.error("질문이 1개 이상 저장된 후에 다음 단계로 갈 수 있습니다.");
+          return;
+        }
+        markStepCompleted(4);
+      },
+      canAdvance: hasQuestions && !generateMutation.isPending,
+      busy: generateMutation.isPending,
+      label: generateMutation.isPending ? "질문 생성 중…" : "다음 단계",
+    });
+    return () => setAdvance(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasQuestions, generateMutation.isPending, setAdvance]);
 
   return (
-    <WizardShell
-      step={4}
-      title="질문을 미리 확인합니다."
-      description={
-        <>
-          <p>
-            앞서 정의한 정책으로 자료 근거 기반 질문을 생성합니다. 각 질문은 의도와
-            검증 초점, 평가 포인트, 근거 출처를 함께 갖고 있습니다.
-          </p>
-          <p className="mt-3 text-sm">
-            정책을 다시 바꾸고 싶다면 이전 단계로 돌아가세요. 재생성은 정책 변경 후
-            다시 실행됩니다.
-          </p>
-        </>
-      }
-      actions={
-        <>
-          <Button type="button" variant="ghost" onClick={() => goToStep(3)}>
-            ← 이전
-          </Button>
-          <Button type="button" onClick={onNext} disabled={!hasQuestions}>
-            다음 단계
-          </Button>
-        </>
-      }
-    >
+    <WizardShell step={4}>
+      <div className="space-y-2 text-sm text-muted-foreground">
+        <p>
+          앞서 정의한 정책으로 자료 근거 기반 질문을 생성합니다. 각 질문은 의도와
+          검증 초점, 평가 포인트, 근거 출처를 함께 갖고 있습니다.
+        </p>
+        <p>정책을 다시 바꾸고 싶다면 이전 단계로 돌아가세요. 재생성은 정책 변경 후 다시 실행됩니다.</p>
+      </div>
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">상태</CardTitle>
@@ -686,7 +664,7 @@ function subscribeNoop(): () => void {
 
 export function Stage5Summary() {
   const router = useRouter();
-  const { evaluationId, info, goToStep } = useWizardState();
+  const { evaluationId, info, setAdvance } = useWizardState();
   const evaluationQuery = useEvaluation(evaluationId);
   const questionsQuery = useAdminQuestions(evaluationId);
 
@@ -716,36 +694,20 @@ export function Stage5Summary() {
     }
   }
 
+  useEffect(() => {
+    setAdvance({
+      onAdvance: () => {
+        if (!evaluationId) return;
+        router.push(`/admin/${evaluationId}`);
+      },
+      canAdvance: Boolean(evaluationId),
+      label: "관리 콘솔로 이동 →",
+    });
+    return () => setAdvance(null);
+  }, [evaluationId, router, setAdvance]);
+
   return (
-    <WizardShell
-      step={5}
-      title="학생에게 공유합니다."
-      description={
-        <>
-          <p>
-            학생에게 공유할 입장 URL과 비밀번호를 안내합니다. 학생은 로그인 없이 이
-            정보만으로 인터뷰에 진입합니다.
-          </p>
-          <p className="mt-3 text-sm">
-            관리 콘솔에서는 자료, 질문, 진행 상황, 리포트를 모두 확인할 수 있습니다.
-          </p>
-        </>
-      }
-      actions={
-        <>
-          <Button type="button" variant="ghost" onClick={() => goToStep(4)}>
-            ← 이전
-          </Button>
-          <Button
-            type="button"
-            onClick={() => router.push(`/admin/${evaluationId}`)}
-            disabled={!evaluationId}
-          >
-            관리 콘솔로 이동
-          </Button>
-        </>
-      }
-    >
+    <WizardShell step={5}>
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">학생 공유 정보</CardTitle>
@@ -866,12 +828,4 @@ function SummaryRow({
       <span className="text-right text-foreground">{value || "-"}</span>
     </div>
   );
-}
-
-// 사용하지 않는 stage 가 unmount 될 때 일부 부수효과(예: 마법사 5단계 진입 시 highestCompletedStep
-// 을 5로 끌어올리기)를 처리한다. 현재는 별도로 필요하지 않다.
-export function useStageVisible(_visible: boolean) {
-  useEffect(() => {
-    // placeholder for future hook usage.
-  }, [_visible]);
 }
