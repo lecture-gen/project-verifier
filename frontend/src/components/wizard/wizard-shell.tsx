@@ -1,5 +1,6 @@
-// 단일 페이지 마법사용 stage 셸. 한 stage(섹션)의 좌우 2분할 editorial 레이아웃.
-// 외곽 컨테이너(스크롤/슬라이드)는 /create 페이지가 담당하고, 이 컴포넌트는 stage 1개의 내용만 그린다.
+// 단일 페이지 마법사용 stage 셸. 한 stage 의 [번호+제목+설명] 영역과 본문 영역을
+// 위→아래(vertical) 로 배치한다. 외곽 컨테이너(스크롤/슬라이드)는 /create 페이지가 담당하고,
+// 이 컴포넌트는 stage 1개의 내용만 그린다.
 
 import type { ReactNode } from "react";
 
@@ -30,8 +31,8 @@ export function WizardShell({
   const totalLabel = String(WIZARD_STEP_TOTAL).padStart(2, "0");
 
   return (
-    <div className="grid w-full grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-12 md:gap-16">
-      <aside className="flex flex-col gap-10">
+    <div className="flex w-full flex-col gap-10">
+      <aside className="flex flex-col gap-6">
         <div className="flex items-baseline justify-between">
           <span className="font-serif text-[5rem] leading-none tracking-tight text-foreground/90 md:text-[6.5rem]">
             {stepLabel}
@@ -51,7 +52,7 @@ export function WizardShell({
         </header>
 
         {(previousLabel || nextLabel) && (
-          <footer className="mt-auto space-y-3 border-t border-border/60 pt-6 text-sm text-muted-foreground">
+          <footer className="space-y-3 border-t border-border/60 pt-6 text-sm text-muted-foreground">
             {previousLabel && (
               <p>
                 <span className="mr-2 uppercase tracking-[0.2em] text-muted-foreground/70">
