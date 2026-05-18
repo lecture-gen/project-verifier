@@ -30,8 +30,9 @@ export function WizardShell({
   return (
     <div
       className={cn(
-        // 부모 section 이 min-h-[100dvh] flex-col 이므로 여기서 flex-1 로 그 높이를 그대로 받는다.
-        "flex w-full flex-1 flex-col gap-6 py-6 md:gap-8 md:py-8",
+        // 부모 section 이 h-full snap stage 이므로 여기서도 h-full 로 그 높이를 그대로 받아
+        // header / 본문(스크롤) / actions 가 viewport 안에 정확히 들어가도록 한다.
+        "flex h-full w-full flex-col gap-6 py-6 md:gap-8 md:py-8",
       )}
     >
       <aside className="flex shrink-0 flex-col gap-4 md:gap-6">

@@ -47,8 +47,10 @@ export default function CreateWizardPage() {
   }, [currentStep]);
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 md:py-8">
-      <div className="mb-4 flex items-center justify-between md:mb-6">
+    // main 자체가 viewport 높이를 차지하고, 페이지 외부 스크롤은 발생하지 않는다.
+    // stage 들은 내부 `containerRef` 컨테이너 안에서 CSS scroll-snap 으로 한 step 씩 정렬된다.
+    <main className="mx-auto flex h-[100dvh] w-full max-w-6xl flex-col px-4 sm:px-6">
+      <div className="flex shrink-0 items-center justify-between py-4 md:py-6">
         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
           새 평가 방 만들기
         </p>
@@ -61,7 +63,7 @@ export default function CreateWizardPage() {
 
       <div
         ref={containerRef}
-        className="snap-y snap-mandatory space-y-16 md:space-y-24"
+        className="min-h-0 flex-1 snap-y snap-mandatory overflow-y-auto scroll-smooth"
       >
         {(Object.keys(STAGES) as unknown as string[])
           .map((key) => Number(key) as WizardStep)
@@ -74,13 +76,11 @@ export default function CreateWizardPage() {
                 key={step}
                 data-stage={step}
                 aria-hidden={!visible}
-                // 한 stage 는 사용자 viewport 높이에 맞춰 한 화면을 차지한다.
-                // scroll-mt 로 sticky/상단 여백 보정, scroll-snap 으로 step 단위 정렬.
+                // 각 stage 는 컨테이너 높이(=main 높이 - breadcrumb)를 정확히 1개 차지하고,
+                // snap-start + snap-always 로 step 단위 페이지처럼 정렬된다.
                 className={cn(
-                  "flex min-h-[100dvh] snap-start scroll-mt-6 flex-col transition-all duration-500 ease-out",
-                  visible
-                    ? "translate-y-0 opacity-100"
-                    : "pointer-events-none translate-y-8 opacity-0",
+                  "flex h-full w-full shrink-0 snap-start snap-always flex-col overflow-hidden transition-opacity duration-500 ease-out",
+                  visible ? "opacity-100" : "pointer-events-none opacity-0",
                   active ? "" : "opacity-70",
                 )}
               >
