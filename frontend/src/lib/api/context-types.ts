@@ -84,7 +84,6 @@ export interface ProjectAreaContext {
   summary: string;
   role_in_project: string;
   key_concerns: string[];
-  confidence: number;
   source_refs: unknown[];
 }
 

@@ -8,10 +8,7 @@ from app.project_evaluations.domain.enums import EvaluationStatus
 
 
 class ProjectEvaluationCreate(BaseModel):
-    project_name: str = Field(min_length=1, max_length=200)
-    candidate_name: str = Field(default="", max_length=200)
-    description: str = Field(default="", max_length=2000)
-    room_name: str = Field(default="", max_length=200)
+    name: str = Field(min_length=1, max_length=200)
     room_password: str = Field(default="", max_length=200, repr=False)
     question_policy: QuestionGenerationPolicy = Field(
         default_factory=QuestionGenerationPolicy
@@ -22,10 +19,7 @@ class ProjectEvaluationRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    project_name: str
-    candidate_name: str
-    description: str
-    room_name: str = ""
+    name: str
     status: EvaluationStatus
     question_policy: QuestionGenerationPolicy
     created_at: datetime
@@ -36,9 +30,7 @@ class ProjectEvaluationSummaryRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    room_name: str = ""
-    project_name: str
-    candidate_name: str = ""
+    name: str
     status: EvaluationStatus
     question_count: int
     created_at: datetime

@@ -17,10 +17,7 @@ export const WIZARD_STEP_TOTAL = 5;
 export type WizardStep = 1 | 2 | 3 | 4 | 5;
 
 export interface WizardInfoDraft {
-  room_name: string;
-  project_name: string;
-  candidate_name: string;
-  description: string;
+  name: string;
   // 학생 입장 비밀번호. 5단계 요약에서 보여주기 위해 보관한다.
   room_password: string;
 }
@@ -162,8 +159,8 @@ export interface StageMeta {
 export const STAGE_META: Record<WizardStep, StageMeta> = {
   1: {
     label: "정의",
-    title: "방을 정의하세요.",
-    outcome: "이 단계가 끝나면 방이 생성되고 평가 ID가 발급됩니다.",
+    title: "평가를 정의하세요.",
+    outcome: "이 단계가 끝나면 평가가 생성되고 평가 ID가 발급됩니다.",
   },
   2: {
     label: "자료",

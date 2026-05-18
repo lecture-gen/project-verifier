@@ -3,6 +3,7 @@
 // 관리 콘솔. 평가자 비밀번호 게이트는 제거됨.
 // Tabs (개요/자료/질문/리포트). 평가 상세는 업로드 자료와 질문 본문 중심으로 보여준다.
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
@@ -17,13 +18,16 @@ import {
   useAdminQuestions,
   useArtifacts,
   useEvaluation,
+  useEvaluationReports,
+  useEvaluationSessions,
   useEvaluationStatus,
   useExtractedContext,
-  useLatestReport,
 } from "@/lib/api/queries";
 import type {
+  EvaluationReportRead,
   ExtractedProjectContextRead,
   InterviewQuestionRead,
+  InterviewSessionRead,
   ProjectArtifactRead,
 } from "@/lib/api/endpoints";
 import { AreasGrid } from "@/components/wizard/context/AreasGrid";
@@ -150,9 +154,7 @@ function OverviewTab({ evaluationId }: { evaluationId: string }) {
         <CardContent className="space-y-2 text-sm">
           {evaluation ? (
             <>
-              <MetaRow label="방 이름" value={evaluation.room_name} />
-              <MetaRow label="프로젝트" value={evaluation.project_name} />
-              <MetaRow label="학생" value={evaluation.candidate_name} />
+              <MetaRow label="평가 명" value={evaluation.name} />
               <MetaRow
                 label="질문 정책"
                 value={`총 ${evaluation.question_policy.total_question_count} 문항`}
@@ -302,7 +304,7 @@ function ProjectInfoCard({
             <AdminSection title="주요 기능">
               <AdminFeaturesList items={context.features ?? []} />
             </AdminSection>
-            <AdminSection title="프로젝트 영역">
+            <AdminSection title="영역">
               <AreasGrid areas={context.areas ?? []} />
             </AdminSection>
             <AdminSection title="학생이 부딪혔을 만한 구현 난점">
@@ -537,20 +539,155 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 // ---------- 리포트 탭 ----------
 
+// 한 평가에 여러 학생이 입장할 수 있으므로, 세션(학생)별 리포트를 셀렉터로 전환해 보여준다.
+// 세션 목록은 InterviewSessionRow 기반 (참여한 학생 1명당 1개 세션).
+// 리포트 목록은 EvaluationReportRow 기반 (세션 완료 시 1건씩 생성). 한 세션에 여러 리포트가
+// 쌓일 수 있으므로(예: 재완료) session_id 별 가장 최신 1건만 사용한다.
 function ReportTab({ evaluationId }: { evaluationId: string }) {
-  const reportQuery = useLatestReport(evaluationId, { retry: false });
-  const report = reportQuery.data;
+  const sessionsQuery = useEvaluationSessions(evaluationId, { retry: false });
+  const reportsQuery = useEvaluationReports(evaluationId, { retry: false });
 
-  if (reportQuery.isPending) {
+  const sessions = sessionsQuery.data ?? [];
+  const reports = reportsQuery.data ?? [];
+
+  // session_id → 최신 EvaluationReportRead.
+  const reportBySession = useMemo(() => {
+    const map = new Map<string, EvaluationReportRead>();
+    for (const report of reports) {
+      const existing = map.get(report.session_id);
+      if (!existing || new Date(report.created_at) > new Date(existing.created_at)) {
+        map.set(report.session_id, report);
+      }
+    }
+    return map;
+  }, [reports]);
+
+  // 리포트가 존재하는 세션만 노출. 최근 완료 순.
+  const completedSessions = useMemo(() => {
+    return sessions
+      .filter((session) => reportBySession.has(session.id))
+      .sort((a, b) => {
+        const aReport = reportBySession.get(a.id)!;
+        const bReport = reportBySession.get(b.id)!;
+        return (
+          new Date(bReport.created_at).getTime() -
+          new Date(aReport.created_at).getTime()
+        );
+      });
+  }, [sessions, reportBySession]);
+
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+
+  // 세션 목록이 갱신되면, 선택값이 비었거나 사라진 경우 가장 최신 세션을 자동 선택한다.
+  useEffect(() => {
+    if (completedSessions.length === 0) {
+      if (selectedSessionId !== null) setSelectedSessionId(null);
+      return;
+    }
+    const stillValid = completedSessions.some(
+      (session) => session.id === selectedSessionId,
+    );
+    if (!stillValid) {
+      setSelectedSessionId(completedSessions[0]!.id);
+    }
+  }, [completedSessions, selectedSessionId]);
+
+  if (sessionsQuery.isPending || reportsQuery.isPending) {
     return <p className="text-sm text-muted-foreground">리포트를 불러오는 중…</p>;
   }
-  if (!report) {
+
+  if (completedSessions.length === 0) {
     return (
       <p className="rounded-md border border-dashed border-border/60 px-4 py-10 text-center text-sm text-muted-foreground">
-        아직 생성된 리포트가 없습니다. 검증가 끝나면 자동으로 채워집니다.
+        아직 생성된 리포트가 없습니다. 학생가 검증를 완료하면 학생별로 리포트가 채워집니다.
       </p>
     );
   }
 
-  return <ReportView report={report} audience="admin" />;
+  const selectedReport = selectedSessionId
+    ? reportBySession.get(selectedSessionId) ?? null
+    : null;
+  const selectedSession = selectedSessionId
+    ? completedSessions.find((session) => session.id === selectedSessionId) ?? null
+    : null;
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">학생별 리포트</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            이 평가에 검증를 완료한 학생 {completedSessions.length}명. 카드를 눌러 학생별
+            리포트를 전환할 수 있습니다.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {completedSessions.map((session) => (
+              <li key={session.id}>
+                <ParticipantSelectorButton
+                  session={session}
+                  report={reportBySession.get(session.id)!}
+                  selected={session.id === selectedSessionId}
+                  onSelect={() => setSelectedSessionId(session.id)}
+                />
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+
+      {selectedReport && selectedSession && (
+        <>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">
+                {selectedSession.participant_name || "(이름 미입력)"} 의 리포트
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                완료 {new Date(selectedReport.created_at).toLocaleString("ko-KR")}
+              </p>
+            </CardHeader>
+          </Card>
+          <ReportView report={selectedReport} audience="admin" />
+        </>
+      )}
+    </div>
+  );
+}
+
+function ParticipantSelectorButton({
+  session,
+  report,
+  selected,
+  onSelect,
+}: {
+  session: InterviewSessionRead;
+  report: EvaluationReportRead;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const completedAt = new Date(report.created_at).toLocaleString("ko-KR");
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={`w-full rounded border px-3 py-2 text-left transition-colors ${
+        selected
+          ? "border-foreground/60 bg-foreground/5"
+          : "border-border/60 hover:border-foreground/30"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="truncate text-sm font-medium">
+          {session.participant_name || "(이름 미입력)"}
+        </span>
+        <Badge variant="outline" className="text-[10px]">
+          {report.final_decision}
+        </Badge>
+      </div>
+      <p className="mt-1 text-[11px] text-muted-foreground">완료 {completedAt}</p>
+    </button>
+  );
 }

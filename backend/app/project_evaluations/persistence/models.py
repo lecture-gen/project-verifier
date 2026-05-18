@@ -16,10 +16,7 @@ class ProjectEvaluationRow(Base):
     __tablename__ = "project_evaluations"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    project_name: Mapped[str] = mapped_column(String(200), nullable=False)
-    candidate_name: Mapped[str] = mapped_column(String(200), nullable=False, default="")
-    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    room_name: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
     room_password_hash: Mapped[str] = mapped_column(Text, nullable=False, default="")
     question_policy_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     status: Mapped[str] = mapped_column(String(40), nullable=False, default="created")
@@ -82,7 +79,6 @@ class ProjectAreaRow(Base):
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     role_in_project: Mapped[str] = mapped_column(Text, nullable=False, default="")
     key_concerns_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
-    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
     source_refs_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
 
 

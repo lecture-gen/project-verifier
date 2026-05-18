@@ -51,7 +51,6 @@ def _build_with_llm(
             "summary": area.summary,
             "role_in_project": area.role_in_project,
             "key_concerns": list(area.key_concerns),
-            "confidence": area.confidence,
             "source_refs": _match_source_refs(area.name, artifacts)
             or _representative_source_refs(artifacts),
         }

@@ -28,7 +28,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
-import { Textarea } from "@/components/ui/textarea";
 import { WizardShell } from "@/components/wizard/wizard-shell";
 import { ApiError } from "@/lib/api/client";
 import {
@@ -61,10 +60,7 @@ function describeError(error: unknown, fallback: string): string {
 // =====================================================================
 
 const infoSchema = z.object({
-  room_name: z.string().trim().min(1, "방 이름을 입력하세요."),
-  project_name: z.string().trim().min(1, "프로젝트명을 입력하세요."),
-  candidate_name: z.string().trim(),
-  description: z.string().trim(),
+  name: z.string().trim().min(1, "평가 명을 입력하세요."),
   room_password: z.string().min(4, "학생 입장 비밀번호는 4자 이상으로 정해주세요."),
 });
 
@@ -77,10 +73,7 @@ export function Stage1Info() {
   const form = useForm<InfoFormValues>({
     resolver: zodResolver(infoSchema),
     defaultValues: {
-      room_name: info?.room_name ?? "",
-      project_name: info?.project_name ?? "",
-      candidate_name: info?.candidate_name ?? "",
-      description: info?.description ?? "",
+      name: info?.name ?? "",
       room_password: info?.room_password ?? "",
     },
   });
@@ -88,22 +81,16 @@ export function Stage1Info() {
   async function onSubmit(values: InfoFormValues) {
     try {
       const created = await mutation.mutateAsync({
-        project_name: values.project_name,
-        candidate_name: values.candidate_name,
-        description: values.description,
-        room_name: values.room_name || values.project_name,
+        name: values.name,
         room_password: values.room_password,
       });
       setEvaluation(created.id, {
-        room_name: created.room_name || values.project_name,
-        project_name: created.project_name,
-        candidate_name: created.candidate_name,
-        description: created.description,
+        name: created.name,
         room_password: values.room_password,
       });
-      toast.success(`방을 만들었습니다.`);
+      toast.success(`평가를 만들었습니다.`);
     } catch (error) {
-      toast.error(describeError(error, "방 생성에 실패했습니다."));
+      toast.error(describeError(error, "평가 생성에 실패했습니다."));
     }
   }
 
@@ -130,59 +117,17 @@ export function Stage1Info() {
         >
           <FormField
             control={form.control}
-            name="room_name"
+            name="name"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>방 / 시험 이름</FormLabel>
+                <FormLabel>평가 명</FormLabel>
                 <FormControl>
-                  <Input placeholder="예: 캡스톤 4조 프로젝트 검증" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="project_name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>프로젝트명</FormLabel>
-                <FormControl>
-                  <Input placeholder="예: 프로젝트 수행 진위 평가 서비스" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="candidate_name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>학생 / 팀 라벨</FormLabel>
-                <FormControl>
-                  <Input placeholder="예: 4조" {...field} />
+                  <Input placeholder="예: 캡스톤 4조 프로젝트 수행 진위 검증" {...field} />
                 </FormControl>
                 <FormDescription>
-                  리포트와 관리 콘솔에서 이 라벨로 평가를 구분합니다.
+                  하나의 평가를 만들면 여러 학생이 같은 입장 URL과 비밀번호로 들어와
+                  각자 검증을 받습니다. 리포트는 학생별로 나뉘어 확인할 수 있습니다.
                 </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>프로젝트 설명</FormLabel>
-                <FormControl>
-                  <Textarea
-                    placeholder="핵심 기능과 제출 자료 범위를 간단히 적어주세요."
-                    rows={4}
-                    {...field}
-                  />
-                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
@@ -738,16 +683,8 @@ export function Stage5Summary() {
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           <SummaryRow
-            label="방 이름"
-            value={evaluation?.room_name || info?.room_name}
-          />
-          <SummaryRow
-            label="프로젝트"
-            value={evaluation?.project_name || info?.project_name}
-          />
-          <SummaryRow
-            label="학생 / 팀"
-            value={evaluation?.candidate_name || info?.candidate_name}
+            label="평가 명"
+            value={evaluation?.name || info?.name}
           />
           <Separator />
           <div>

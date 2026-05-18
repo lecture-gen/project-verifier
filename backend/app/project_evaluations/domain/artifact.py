@@ -45,7 +45,6 @@ class ProjectAreaRead(BaseModel):
     summary: str
     role_in_project: str = ""
     key_concerns: list[str] = Field(default_factory=list)
-    confidence: float
     source_refs: list[SourceReference] = Field(default_factory=list)
 
 

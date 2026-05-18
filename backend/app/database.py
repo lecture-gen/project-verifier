@@ -39,7 +39,7 @@ def init_database(engine: Engine) -> None:
 def ensure_schema_columns(engine: Engine) -> None:
     columns_by_table = {
         "project_evaluations": {
-            "room_name": "VARCHAR(200) NOT NULL DEFAULT ''",
+            "name": "VARCHAR(200) NOT NULL DEFAULT ''",
             "room_password_hash": "TEXT NOT NULL DEFAULT ''",
             "question_policy_json": "TEXT NOT NULL DEFAULT '{}'",
         },

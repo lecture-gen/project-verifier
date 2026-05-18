@@ -13,7 +13,7 @@ import type {
 } from "@/lib/api/endpoints";
 
 const STATUS_LABEL: Record<EvaluationStatus, string> = {
-  created: "방 생성",
+  created: "평가 생성",
   uploaded: "자료 업로드",
   analyzed: "분석 완료",
   questions_generated: "질문 생성",
@@ -29,18 +29,18 @@ export default function AdminListPage() {
       <header className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
-            평가 방 목록
+            평가 목록
           </p>
           <h1 className="mt-2 font-serif text-4xl leading-tight tracking-tight">
             관리 콘솔
           </h1>
           <p className="mt-3 max-w-xl text-sm text-muted-foreground">
-            카드 클릭 시 해당 방의 자료·질문·리포트를 볼 수 있는 콘솔로 이동합니다.
+            카드 클릭 시 해당 평가의 자료·질문·학생별 리포트를 볼 수 있는 콘솔로 이동합니다.
           </p>
         </div>
         <Button asChild>
           <Link href="/create">
-            <Plus />새 방 만들기
+            <Plus />새 평가 만들기
           </Link>
         </Button>
       </header>
@@ -59,7 +59,7 @@ export default function AdminListPage() {
 
       {listQuery.data && listQuery.data.length === 0 && (
         <p className="rounded-md border border-dashed border-border/60 px-4 py-10 text-center text-sm text-muted-foreground">
-          아직 만든 방이 없습니다. 우상단의 “새 방 만들기” 로 시작하세요.
+          아직 만든 평가가 없습니다. 우상단의 “새 평가 만들기” 로 시작하세요.
         </p>
       )}
 
@@ -97,12 +97,8 @@ function EvaluationCard({
             <Badge variant="outline">질문 {evaluation.question_count}</Badge>
           </div>
           <CardTitle className="text-lg leading-snug">
-            {evaluation.room_name || evaluation.project_name || "(이름 없음)"}
+            {evaluation.name || "(이름 없음)"}
           </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            {evaluation.project_name}
-            {evaluation.candidate_name ? ` · ${evaluation.candidate_name}` : ""}
-          </p>
         </CardHeader>
         <CardContent className="space-y-1 text-xs text-muted-foreground">
           <p>

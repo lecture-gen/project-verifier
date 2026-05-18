@@ -76,7 +76,11 @@ class StudentImplementationRisk(BaseModel):
 
 
 class AreaSchema(BaseModel):
-    name: str = Field(description="영역 이름 (검증 질문 단위가 되는 핵심 영역)")
+    name: str = Field(
+        description=(
+            "영역 이름. 이 프로젝트를 기능 / 도메인 / 레이어 단위로 분할했을 때의 한 단위 이름."
+        )
+    )
     summary: str = Field(description="이 영역의 역할과 핵심 구현 내용 요약 (2~3문장)")
     role_in_project: str = Field(
         description="이 영역이 전체 시스템에서 맡은 역할을 1문장으로"
@@ -85,9 +89,6 @@ class AreaSchema(BaseModel):
         min_length=1,
         max_length=3,
         description="검증 시 확인할 만한 의사결정·트레이드오프 키워드 1~3개. 예: 'RAG payload 일관성', '벡터 컬렉션 격리'.",
-    )
-    confidence: float = Field(
-        ge=0.0, le=1.0, description="자료 기반 분석 신뢰도 (0~1)"
     )
 
 
@@ -118,7 +119,10 @@ class ProjectContextSchema(BaseModel):
     areas: list[AreaSchema] = Field(
         min_length=1,
         max_length=6,
-        description="프로젝트 주요 영역별 분석 (3~6개). 너무 광범위·너무 협소 모두 금지.",
+        description=(
+            "이 프로젝트를 기능 / 도메인 / 레이어 단위로 분할한 영역 목록 (3~6개). "
+            "각 영역은 검증 질문이 출제되는 단위가 된다. 너무 광범위·너무 협소 모두 금지."
+        ),
     )
 
 
@@ -324,7 +328,8 @@ CONTEXT_SYSTEM = """당신은 제출 프로젝트 수행 진위 검증을 위한
 - `evidence_path`는 반드시 채웁니다.
 
 ### areas (3~6개, AreaSchema 객체)
-- 검증 질문 단위가 되는 핵심 영역. "백엔드 전체"처럼 광범위하거나 "config 모듈"처럼 협소하면 안 됩니다.
+- **영역은 이 프로젝트를 기능 / 도메인 / 레이어 단위로 분할한 단위입니다.** 검증 질문이 출제되는 단위가 됩니다.
+- "백엔드 전체"처럼 광범위하거나 "config 모듈"처럼 협소하면 안 됩니다. 기능(예: "검증 세션 관리"), 도메인(예: "RAG 파이프라인"), 레이어(예: "Wizard UI") 어느 분할 기준이든 가능합니다.
 - `name`: 짧고 의미 있는 이름 (예: "RAG 파이프라인", "검증 세션 관리", "Wizard UI").
 - `summary`: 이 영역의 역할과 구현 핵심 2~3문장.
 - `role_in_project`: 이 영역이 전체 시스템에서 맡은 역할 1문장.
@@ -372,7 +377,7 @@ STRUCTURAL FACTS에 등장하지 않는 layer/module/dependency 이름을 만들
   ],
   "question_targets": ["..."],
   "areas": [
-    {"name": "...", "summary": "...", "role_in_project": "...", "key_concerns": ["..."], "confidence": 0.0}
+    {"name": "...", "summary": "...", "role_in_project": "...", "key_concerns": ["..."]}
   ]
 }"""
 

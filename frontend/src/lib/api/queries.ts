@@ -12,6 +12,8 @@ import {
   getLatestReport,
   getReport,
   listArtifacts,
+  listEvaluationReports,
+  listEvaluationSessions,
   listEvaluations,
   listQuestionsAsAdmin,
   listQuestionsAsParticipant,
@@ -19,6 +21,7 @@ import {
   type EvaluationReportRead,
   type ExtractedProjectContextRead,
   type InterviewQuestionRead,
+  type InterviewSessionRead,
   type InterviewTurnRead,
   type ProjectArtifactRead,
   type ProjectEvaluationRead,
@@ -37,6 +40,8 @@ export const evaluationKeys = {
   artifacts: (id: string) => [...evaluationKeys.all, id, "artifacts"] as const,
   context: (id: string) => [...evaluationKeys.all, id, "context"] as const,
   questions: (id: string) => [...evaluationKeys.all, id, "questions"] as const,
+  sessionsList: (id: string) => [...evaluationKeys.all, id, "sessions", "list"] as const,
+  reportsList: (id: string) => [...evaluationKeys.all, id, "reports", "list"] as const,
   latestReport: (id: string) => [...evaluationKeys.all, id, "reports", "latest"] as const,
   report: (id: string, reportId: string) =>
     [...evaluationKeys.all, id, "reports", reportId] as const,
@@ -123,6 +128,32 @@ export function useAdminQuestions(
   return useQuery<InterviewQuestionRead[], Error>({
     queryKey: evaluationKeys.questions(evaluationId ?? ""),
     queryFn: () => listQuestionsAsAdmin(evaluationId!),
+    enabled: enabled && (options?.enabled ?? true),
+    ...options,
+  });
+}
+
+export function useEvaluationSessions(
+  evaluationId: string | null | undefined,
+  options?: QueryExtras<InterviewSessionRead[]>,
+) {
+  const enabled = Boolean(evaluationId);
+  return useQuery<InterviewSessionRead[], Error>({
+    queryKey: evaluationKeys.sessionsList(evaluationId ?? ""),
+    queryFn: () => listEvaluationSessions(evaluationId!),
+    enabled: enabled && (options?.enabled ?? true),
+    ...options,
+  });
+}
+
+export function useEvaluationReports(
+  evaluationId: string | null | undefined,
+  options?: QueryExtras<EvaluationReportRead[]>,
+) {
+  const enabled = Boolean(evaluationId);
+  return useQuery<EvaluationReportRead[], Error>({
+    queryKey: evaluationKeys.reportsList(evaluationId ?? ""),
+    queryFn: () => listEvaluationReports(evaluationId!),
     enabled: enabled && (options?.enabled ?? true),
     ...options,
   });

@@ -1,7 +1,7 @@
 "use client";
 
-// 프로젝트 영역 그리드 — 검증 질문 단위가 되는 핵심 영역들을 카드로 표시.
-// 상단에 영역의 목적(부제)을 명시한다. 사용자가 이 필드의 의미를 헷갈리지 않도록.
+// 영역 그리드 — 프로젝트를 기능 / 도메인 / 레이어 단위로 분할한 단위들을 카드로 표시.
+// 각 영역은 검증 질문이 출제되는 단위가 된다.
 
 import { Badge } from "@/components/ui/badge";
 import type { ProjectAreaContext } from "@/lib/api/context-types";
@@ -18,8 +18,9 @@ export function AreasGrid({ areas }: { areas: ProjectAreaContext[] }) {
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        검증 질문이 출제되는 단위 영역입니다. 영역별로 학생에게 어떤 점을 확인할지
-        파악할 수 있도록 정리됩니다.
+        이 프로젝트를 <strong className="font-medium text-foreground">기능 / 도메인 / 레이어</strong> 단위로 분할한 영역입니다.
+        각 영역은 검증 질문이 출제되는 단위가 되며, 학생가 영역별로 어떤 점을 설명할 수 있어야
+        하는지 정리됩니다.
       </p>
       <ul className="grid gap-3 md:grid-cols-2">
         {areas.map((area) => (
@@ -29,9 +30,6 @@ export function AreasGrid({ areas }: { areas: ProjectAreaContext[] }) {
           >
             <div className="flex flex-wrap items-baseline gap-2">
               <span className="text-sm font-semibold">{area.name}</span>
-              <Badge variant="outline" className="text-[10px]">
-                신뢰도 {(area.confidence * 100).toFixed(0)}%
-              </Badge>
             </div>
             {area.role_in_project && (
               <p className="mt-2 text-xs text-muted-foreground">

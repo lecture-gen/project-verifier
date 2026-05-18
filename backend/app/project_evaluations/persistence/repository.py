@@ -96,10 +96,7 @@ class ProjectEvaluationRepository:
     ) -> ProjectEvaluationRead:
         row = ProjectEvaluationRow(
             id=new_id(),
-            project_name=payload.project_name,
-            candidate_name=payload.candidate_name,
-            description=payload.description,
-            room_name=payload.room_name or payload.project_name,
+            name=payload.name,
             room_password_hash=room_password_hash,
             question_policy_json=to_json(payload.question_policy.model_dump()),
             status=EvaluationStatus.CREATED.value,
@@ -146,9 +143,7 @@ class ProjectEvaluationRepository:
         return [
             ProjectEvaluationSummaryRead(
                 id=row.id,
-                room_name=row.room_name,
-                project_name=row.project_name,
-                candidate_name=row.candidate_name,
+                name=row.name,
                 status=EvaluationStatus(row.status),
                 question_count=question_count_by_evaluation.get(row.id, 0),
                 created_at=row.created_at,
@@ -314,7 +309,6 @@ class ProjectEvaluationRepository:
                 summary=str(area.get("summary", "")),
                 role_in_project=str(area.get("role_in_project", "")),
                 key_concerns_json=to_json(list(area.get("key_concerns", []) or [])),
-                confidence=float(area.get("confidence", 0.0)),
                 source_refs_json=to_json(area.get("source_refs", [])),
             )
             self.session.add(area_row)
@@ -675,6 +669,26 @@ class ProjectEvaluationRepository:
             return None
         return self.to_report_read(row)
 
+    def list_sessions_for_evaluation(
+        self, evaluation_id: str
+    ) -> list[InterviewSessionRead]:
+        rows = self.session.scalars(
+            select(InterviewSessionRow)
+            .where(InterviewSessionRow.evaluation_id == evaluation_id)
+            .order_by(InterviewSessionRow.created_at.desc())
+        ).all()
+        return [self.to_session_read(row) for row in rows]
+
+    def list_reports_for_evaluation(
+        self, evaluation_id: str
+    ) -> list[EvaluationReportRead]:
+        rows = self.session.scalars(
+            select(EvaluationReportRow)
+            .where(EvaluationReportRow.evaluation_id == evaluation_id)
+            .order_by(EvaluationReportRow.created_at.desc())
+        ).all()
+        return [self.to_report_read(row) for row in rows]
+
     def get_latest_report(self, evaluation_id: str) -> EvaluationReportRead | None:
         row = self.session.scalar(
             select(EvaluationReportRow)
@@ -700,10 +714,7 @@ class ProjectEvaluationRepository:
     def to_evaluation_read(self, row: ProjectEvaluationRow) -> ProjectEvaluationRead:
         return ProjectEvaluationRead(
             id=row.id,
-            project_name=row.project_name,
-            candidate_name=row.candidate_name,
-            description=row.description,
-            room_name=row.room_name,
+            name=row.name,
             status=EvaluationStatus(row.status),
             question_policy=QuestionGenerationPolicy(**from_json(row.question_policy_json, {})),
             created_at=row.created_at,
@@ -749,7 +760,6 @@ class ProjectEvaluationRepository:
             summary=row.summary,
             role_in_project=row.role_in_project,
             key_concerns=from_json(row.key_concerns_json, []),
-            confidence=row.confidence,
             source_refs=refs_from_json(row.source_refs_json),
         )
 

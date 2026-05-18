@@ -457,6 +457,28 @@ def complete_session(
     return service.complete_session(evaluation_id, session_id, x_session_token, request_client_id)
 
 
+@router.get(
+    "/{evaluation_id}/sessions",
+    response_model=list[InterviewSessionRead],
+)
+def list_sessions(
+    evaluation_id: str,
+    service: Annotated[ProjectEvaluationService, Depends(get_service)],
+) -> list[InterviewSessionRead]:
+    return service.list_sessions(evaluation_id)
+
+
+@router.get(
+    "/{evaluation_id}/reports",
+    response_model=list[EvaluationReportRead],
+)
+def list_reports(
+    evaluation_id: str,
+    service: Annotated[ProjectEvaluationService, Depends(get_service)],
+) -> list[EvaluationReportRead]:
+    return service.list_reports(evaluation_id)
+
+
 @router.get("/{evaluation_id}/reports/latest", response_model=EvaluationReportRead)
 def get_latest_report(
     evaluation_id: str,

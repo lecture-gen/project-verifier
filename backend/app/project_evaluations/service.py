@@ -1057,6 +1057,14 @@ class ProjectEvaluationService:
             )
         return report
 
+    def list_sessions(self, evaluation_id: str) -> list[InterviewSessionRead]:
+        self.get_evaluation(evaluation_id)
+        return self.repository.list_sessions_for_evaluation(evaluation_id)
+
+    def list_reports(self, evaluation_id: str) -> list[EvaluationReportRead]:
+        self.get_evaluation(evaluation_id)
+        return self.repository.list_reports_for_evaluation(evaluation_id)
+
     def get_report(self, evaluation_id: str, report_id: str) -> EvaluationReportRead:
         self.get_evaluation(evaluation_id)
         report = self.repository.get_report(report_id)

@@ -24,9 +24,33 @@ export type {
 
 type Schemas = components["schemas"];
 
-export type ProjectEvaluationCreate = Schemas["ProjectEvaluationCreate"];
-export type ProjectEvaluationRead = Schemas["ProjectEvaluationRead"];
-export type ProjectEvaluationSummaryRead = Schemas["ProjectEvaluationSummaryRead"];
+// 평가 명 통합 정책으로 백엔드 DTO 가 단일 `name` 으로 정리됐다. OpenAPI 재생성 전까지
+// types.gen.ts 가 옛 필드(project_name/room_name/candidate_name)를 들고 있을 수 있으므로
+// 아래 3종은 수기로 새 형태를 선언한다.
+export interface ProjectEvaluationCreate {
+  name: string;
+  room_password?: string;
+  question_policy?: Schemas["QuestionGenerationPolicy"];
+}
+
+export interface ProjectEvaluationRead {
+  id: string;
+  name: string;
+  status: Schemas["EvaluationStatus"];
+  question_policy: Schemas["QuestionGenerationPolicy"];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectEvaluationSummaryRead {
+  id: string;
+  name: string;
+  status: Schemas["EvaluationStatus"];
+  question_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export type ProjectEvaluationStatusRead = Schemas["ProjectEvaluationStatusRead"];
 export type EvaluationStatus = Schemas["EvaluationStatus"];
 
@@ -321,4 +345,16 @@ export function getReport(
   reportId: string,
 ): Promise<EvaluationReportRead> {
   return apiFetch<EvaluationReportRead>(`${BASE}/${evaluationId}/reports/${reportId}`);
+}
+
+export function listEvaluationSessions(
+  evaluationId: string,
+): Promise<InterviewSessionRead[]> {
+  return apiFetch<InterviewSessionRead[]>(`${BASE}/${evaluationId}/sessions`);
+}
+
+export function listEvaluationReports(
+  evaluationId: string,
+): Promise<EvaluationReportRead[]> {
+  return apiFetch<EvaluationReportRead[]>(`${BASE}/${evaluationId}/reports`);
 }
