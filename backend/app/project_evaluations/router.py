@@ -12,8 +12,6 @@ from sqlalchemy.orm import Session
 
 from app.database import get_session
 from app.project_evaluations.domain.models import (
-    AdminVerifyRead,
-    AdminVerifyRequest,
     ArtifactUploadResult,
     EvaluationReportRead,
     ExtractedProjectContextRead,
@@ -124,24 +122,15 @@ def update_question_policy(
     evaluation_id: str,
     payload: QuestionPolicyUpdate,
     service: Annotated[ProjectEvaluationService, Depends(get_service)],
-    request_client_id: Annotated[str, Depends(client_id)],
-    x_admin_password: Annotated[str | None, Header()] = None,
 ) -> ProjectEvaluationRead:
-    return service.update_question_policy(
-        evaluation_id,
-        payload.question_policy,
-        x_admin_password,
-        request_client_id,
-    )
+    return service.update_question_policy(evaluation_id, payload.question_policy)
 
 
 @router.get("/{evaluation_id}", response_model=ProjectEvaluationRead)
 def get_evaluation(
     evaluation_id: str,
     service: Annotated[ProjectEvaluationService, Depends(get_service)],
-    x_admin_password: Annotated[str | None, Header()] = None,
 ) -> ProjectEvaluationRead:
-    service.ensure_admin(evaluation_id, x_admin_password)
     return service.get_evaluation(evaluation_id)
 
 
@@ -149,20 +138,8 @@ def get_evaluation(
 def get_evaluation_status(
     evaluation_id: str,
     service: Annotated[ProjectEvaluationService, Depends(get_service)],
-    x_admin_password: Annotated[str | None, Header()] = None,
 ) -> ProjectEvaluationStatusRead:
-    service.ensure_admin(evaluation_id, x_admin_password)
     return service.get_status(evaluation_id)
-
-
-@router.post("/{evaluation_id}/admin/verify", response_model=AdminVerifyRead)
-def verify_admin(
-    evaluation_id: str,
-    payload: AdminVerifyRequest,
-    service: Annotated[ProjectEvaluationService, Depends(get_service)],
-    request_client_id: Annotated[str, Depends(client_id)],
-) -> AdminVerifyRead:
-    return service.verify_admin(evaluation_id, payload.admin_password, request_client_id)
 
 
 @router.post("/{evaluation_id}/join", response_model=JoinEvaluationRead)
@@ -182,9 +159,7 @@ async def upload_zip_artifact(
     evaluation_id: str,
     service: Annotated[ProjectEvaluationService, Depends(get_service)],
     file: UploadFile = File(...),
-    x_admin_password: Annotated[str | None, Header()] = None,
 ) -> ArtifactUploadResult:
-    service.ensure_admin(evaluation_id, x_admin_password)
     return await service.upload_zip(evaluation_id, file)
 
 
@@ -192,9 +167,7 @@ async def upload_zip_artifact(
 def list_artifacts(
     evaluation_id: str,
     service: Annotated[ProjectEvaluationService, Depends(get_service)],
-    x_admin_password: Annotated[str | None, Header()] = None,
 ) -> list[ProjectArtifactRead]:
-    service.ensure_admin(evaluation_id, x_admin_password)
     return service.list_artifacts(evaluation_id)
 
 
@@ -202,9 +175,7 @@ def list_artifacts(
 def extract_context(
     evaluation_id: str,
     service: Annotated[ProjectEvaluationService, Depends(get_service)],
-    x_admin_password: Annotated[str | None, Header()] = None,
 ) -> ExtractedProjectContextRead:
-    service.ensure_admin(evaluation_id, x_admin_password)
     return service.extract_context(evaluation_id)
 
 
@@ -212,9 +183,7 @@ def extract_context(
 def get_context(
     evaluation_id: str,
     service: Annotated[ProjectEvaluationService, Depends(get_service)],
-    x_admin_password: Annotated[str | None, Header()] = None,
 ) -> ExtractedProjectContextRead:
-    service.ensure_admin(evaluation_id, x_admin_password)
     return service.get_context(evaluation_id)
 
 
@@ -224,9 +193,7 @@ def get_context(
 def generate_questions(
     evaluation_id: str,
     service: Annotated[ProjectEvaluationService, Depends(get_service)],
-    x_admin_password: Annotated[str | None, Header()] = None,
 ) -> list[InterviewQuestionRead]:
-    service.ensure_admin(evaluation_id, x_admin_password)
     return service.generate_questions(evaluation_id)
 
 
@@ -235,7 +202,6 @@ def list_questions(
     evaluation_id: str,
     service: Annotated[ProjectEvaluationService, Depends(get_service)],
     request_client_id: Annotated[str, Depends(client_id)],
-    x_admin_password: Annotated[str | None, Header()] = None,
     x_session_id: Annotated[str | None, Header()] = None,
     x_session_token: Annotated[str | None, Header()] = None,
 ) -> list[InterviewQuestionRead]:
@@ -243,8 +209,6 @@ def list_questions(
         service.ensure_session(
             evaluation_id, x_session_id, x_session_token, request_client_id
         )
-    else:
-        service.ensure_admin(evaluation_id, x_admin_password)
     return service.list_questions(evaluation_id)
 
 
@@ -252,9 +216,8 @@ def list_questions(
 def create_session(
     evaluation_id: str,
     service: Annotated[ProjectEvaluationService, Depends(get_service)],
-    x_admin_password: Annotated[str | None, Header()] = None,
 ) -> InterviewSessionRead:
-    return service.create_session(evaluation_id, admin_password=x_admin_password)
+    return service.create_session(evaluation_id)
 
 
 @router.post(
@@ -498,9 +461,7 @@ def complete_session(
 def get_latest_report(
     evaluation_id: str,
     service: Annotated[ProjectEvaluationService, Depends(get_service)],
-    x_admin_password: Annotated[str | None, Header()] = None,
 ) -> EvaluationReportRead:
-    service.ensure_admin(evaluation_id, x_admin_password)
     return service.get_latest_report(evaluation_id)
 
 
@@ -509,7 +470,5 @@ def get_report(
     evaluation_id: str,
     report_id: str,
     service: Annotated[ProjectEvaluationService, Depends(get_service)],
-    x_admin_password: Annotated[str | None, Header()] = None,
 ) -> EvaluationReportRead:
-    service.ensure_admin(evaluation_id, x_admin_password)
     return service.get_report(evaluation_id, report_id)

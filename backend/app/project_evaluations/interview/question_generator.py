@@ -123,6 +123,11 @@ def _generate_with_llm(
         if not source_refs and area and _is_structural_question(q):
             source_refs = _structural_source_refs(area, context_pack.source_refs)
         source_refs = _ensure_question_source_refs(q.question, source_refs)
+        evaluation_targets = [t.strip() for t in (q.evaluation_targets or []) if t and t.strip()]
+        if not evaluation_targets:
+            raise RuntimeError(
+                "LLM이 evaluation_targets를 비웠습니다. 질문이 무엇을 검증하려는지 확인해야 합니다."
+            )
         questions.append(
             {
                 "evaluation_id": evaluation_id,
@@ -132,6 +137,7 @@ def _generate_with_llm(
                 "bloom_level": bloom.value,
                 "difficulty": difficulty.value,
                 "rubric_criteria": [c.value for c in DEFAULT_RUBRIC],
+                "evaluation_targets": evaluation_targets[:3],
                 "source_refs": source_refs,
                 "expected_signal": q.expected_signal,
                 "verification_focus": q.verification_focus,

@@ -13,7 +13,6 @@ class ProjectEvaluationCreate(BaseModel):
     description: str = Field(default="", max_length=2000)
     room_name: str = Field(default="", max_length=200)
     room_password: str = Field(default="", max_length=200, repr=False)
-    admin_password: str = Field(default="", max_length=200, repr=False)
     question_policy: QuestionGenerationPolicy = Field(
         default_factory=QuestionGenerationPolicy
     )

@@ -1,19 +1,18 @@
 "use client";
 
-// 관리 콘솔. admin password 게이트 + Tabs (상태/자료/질문/리포트).
-// 리포트 탭은 Phase 9 에서 본격 시각화로 교체할 placeholder 상태.
+// 관리 콘솔. 평가자 비밀번호 게이트는 제거됨.
+// Tabs (개요/자료/질문/리포트). 평가 상세는 업로드 자료와 질문 본문 중심으로 보여준다.
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 
-import { AdminPasswordDialog } from "@/components/admin/admin-password-dialog";
 import { ReportView } from "@/components/report/report-view";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAdminPassword } from "@/lib/session/admin";
 import {
   useAdminQuestions,
   useArtifacts,
@@ -23,25 +22,27 @@ import {
   useLatestReport,
 } from "@/lib/api/queries";
 import type {
+  ExtractedProjectContextRead,
   InterviewQuestionRead,
   ProjectArtifactRead,
 } from "@/lib/api/endpoints";
 
-const TABS = ["status", "artifacts", "questions", "report"] as const;
+const TABS = ["overview", "artifacts", "questions", "report"] as const;
 type AdminTab = (typeof TABS)[number];
 
 const TAB_LABEL: Record<AdminTab, string> = {
-  status: "상태",
+  overview: "개요",
   artifacts: "자료",
   questions: "질문",
   report: "리포트",
 };
 
 function normalizeTab(value: string | null): AdminTab {
-  if (!value) return "status";
-  return (TABS as readonly string[]).includes(value)
-    ? (value as AdminTab)
-    : "status";
+  if (!value) return "overview";
+  if ((TABS as readonly string[]).includes(value)) return value as AdminTab;
+  // 이전 'status' 키도 overview 로 매핑.
+  if (value === "status") return "overview";
+  return "overview";
 }
 
 interface AdminConsoleProps {
@@ -49,7 +50,6 @@ interface AdminConsoleProps {
 }
 
 export function AdminConsole({ evaluationId }: AdminConsoleProps) {
-  const { password, hydrated } = useAdminPassword(evaluationId);
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeTab = normalizeTab(searchParams.get("tab"));
@@ -59,9 +59,6 @@ export function AdminConsole({ evaluationId }: AdminConsoleProps) {
     params.set("tab", next);
     router.replace(`/admin/${evaluationId}?${params.toString()}`);
   }
-
-  // hydrate 이전에 dialog 자동 열기 방지.
-  const showDialog = hydrated && !password;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-10">
@@ -73,9 +70,6 @@ export function AdminConsole({ evaluationId }: AdminConsoleProps) {
             </Link>
           </Button>
           <h1 className="mt-2 font-serif text-3xl leading-tight">관리 콘솔</h1>
-          <p className="mt-1 font-mono text-xs text-muted-foreground">
-            평가 ID · {evaluationId}
-          </p>
         </div>
         <Button asChild variant="outline">
           <Link
@@ -88,67 +82,59 @@ export function AdminConsole({ evaluationId }: AdminConsoleProps) {
         </Button>
       </header>
 
-      {password ? (
-        <Tabs value={activeTab} onValueChange={setTab}>
-          <TabsList>
-            {TABS.map((tab) => (
-              <TabsTrigger key={tab} value={tab}>
-                {TAB_LABEL[tab]}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+      <Tabs value={activeTab} onValueChange={setTab}>
+        <TabsList>
+          {TABS.map((tab) => (
+            <TabsTrigger key={tab} value={tab}>
+              {TAB_LABEL[tab]}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-          <TabsContent value="status" className="pt-6">
-            <StatusTab evaluationId={evaluationId} adminPassword={password} />
-          </TabsContent>
-          <TabsContent value="artifacts" className="pt-6">
-            <ArtifactsTab evaluationId={evaluationId} adminPassword={password} />
-          </TabsContent>
-          <TabsContent value="questions" className="pt-6">
-            <QuestionsTab evaluationId={evaluationId} adminPassword={password} />
-          </TabsContent>
-          <TabsContent value="report" className="pt-6">
-            <ReportTab evaluationId={evaluationId} adminPassword={password} />
-          </TabsContent>
-        </Tabs>
-      ) : (
-        <p className="rounded-md border border-dashed border-border/60 px-4 py-10 text-center text-sm text-muted-foreground">
-          평가자 비밀번호를 입력해야 콘솔을 볼 수 있습니다.
-        </p>
-      )}
-
-      <AdminPasswordDialog
-        evaluationId={evaluationId}
-        open={showDialog}
-        onOpenChange={(next) => {
-          if (!next && !password) router.push("/admin");
-        }}
-        onVerified={() => {
-          // useAdminPassword 가 sessionStorage 변경을 감지해 password 가 채워진다.
-        }}
-      />
+        <TabsContent value="overview" className="pt-6">
+          <OverviewTab evaluationId={evaluationId} />
+        </TabsContent>
+        <TabsContent value="artifacts" className="pt-6">
+          <ArtifactsTab evaluationId={evaluationId} />
+        </TabsContent>
+        <TabsContent value="questions" className="pt-6">
+          <QuestionsTab evaluationId={evaluationId} />
+        </TabsContent>
+        <TabsContent value="report" className="pt-6">
+          <ReportTab evaluationId={evaluationId} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
 
-// ---------- 상태 탭 ----------
+// ---------- 개요 탭 ----------
 
-function StatusTab({
-  evaluationId,
-  adminPassword,
-}: {
-  evaluationId: string;
-  adminPassword: string;
-}) {
-  const evaluationQuery = useEvaluation(evaluationId, adminPassword);
-  const statusQuery = useEvaluationStatus(evaluationId, adminPassword, {
+function OverviewTab({ evaluationId }: { evaluationId: string }) {
+  const evaluationQuery = useEvaluation(evaluationId);
+  const statusQuery = useEvaluationStatus(evaluationId, {
     refetchInterval: 3000,
   });
+  const artifactsQuery = useArtifacts(evaluationId);
+  const contextQuery = useExtractedContext(evaluationId, { retry: false });
+
   const evaluation = evaluationQuery.data;
   const status = statusQuery.data;
+  const artifacts = artifactsQuery.data ?? [];
+  const context = contextQuery.data;
+
+  // #5 정책: 차단 사유는 질문 단계까지 도달한 상황(질문이 1개 이상 저장됐거나
+  // 질문 생성이 한 번이라도 시도된 상태)에서만 노출한다. 관리 콘솔 초기 진입에는
+  // 보여주지 않는다.
+  const showBlockedReason = Boolean(
+    status?.blocked_reason &&
+      (status.question_count > 0 ||
+        status.phase === "questions_ready" ||
+        status.phase === "question_count_mismatch"),
+  );
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="space-y-6">
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">평가 메타</CardTitle>
@@ -190,9 +176,7 @@ function StatusTab({
                 {status.has_artifacts && (
                   <Badge variant="outline">자료 업로드됨</Badge>
                 )}
-                {status.has_context && (
-                  <Badge variant="outline">분석 완료</Badge>
-                )}
+                {status.has_context && <Badge variant="outline">분석 완료</Badge>}
                 {status.questions_ready && (
                   <Badge variant="outline">질문 준비</Badge>
                 )}
@@ -201,22 +185,10 @@ function StatusTab({
               {status.user_message && (
                 <p className="text-muted-foreground">{status.user_message}</p>
               )}
-              {status.blocked_reason && (
+              {showBlockedReason && (
                 <p className="text-destructive">
                   차단 사유: {status.blocked_reason}
                 </p>
-              )}
-              {status.check_targets && status.check_targets.length > 0 && (
-                <div>
-                  <div className="mb-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                    확인 필요
-                  </div>
-                  <ul className="space-y-1">
-                    {status.check_targets.map((item, index) => (
-                      <li key={index}>· {item}</li>
-                    ))}
-                  </ul>
-                </div>
               )}
             </>
           ) : (
@@ -224,6 +196,12 @@ function StatusTab({
           )}
         </CardContent>
       </Card>
+
+      <ProjectInfoCard
+        artifacts={artifacts}
+        context={context}
+        loading={contextQuery.isPending && artifactsQuery.isPending}
+      />
     </div>
   );
 }
@@ -239,43 +217,22 @@ function MetaRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-// ---------- 자료 탭 ----------
+// ---------- 자료 / 분석 요약 ----------
 
-function ArtifactsTab({
-  evaluationId,
-  adminPassword,
-}: {
-  evaluationId: string;
-  adminPassword: string;
-}) {
-  const artifactsQuery = useArtifacts(evaluationId, adminPassword);
-  const contextQuery = useExtractedContext(evaluationId, adminPassword, {
-    retry: false,
-  });
+function ArtifactsTab({ evaluationId }: { evaluationId: string }) {
+  const artifactsQuery = useArtifacts(evaluationId);
+  const contextQuery = useExtractedContext(evaluationId, { retry: false });
 
   const artifacts = artifactsQuery.data ?? [];
   const context = contextQuery.data;
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">분석 요약</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          {context ? (
-            <p className="whitespace-pre-wrap leading-relaxed">
-              {context.summary || "요약이 비어 있습니다."}
-            </p>
-          ) : contextQuery.isPending ? (
-            <p className="text-muted-foreground">불러오는 중…</p>
-          ) : (
-            <p className="text-muted-foreground">
-              아직 분석이 실행되지 않았습니다. 마법사 2단계에서 자료를 업로드하세요.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <ProjectInfoCard
+        artifacts={artifacts}
+        context={context}
+        loading={contextQuery.isPending}
+      />
 
       <Card>
         <CardHeader className="pb-3">
@@ -297,6 +254,91 @@ function ArtifactsTab({
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function ProjectInfoCard({
+  artifacts,
+  context,
+  loading,
+}: {
+  artifacts: ProjectArtifactRead[];
+  context: ExtractedProjectContextRead | undefined;
+  loading: boolean;
+}) {
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">프로젝트 분석 요약</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          업로드된 자료 {artifacts.length}건을 기반으로 한 분석 결과입니다.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-5 text-sm">
+        {context ? (
+          <>
+            {context.summary && (
+              <p className="whitespace-pre-wrap leading-relaxed">{context.summary}</p>
+            )}
+            {/* #4: 한 줄 전체를 사용하는 grid-cols-1 */}
+            <div className="grid grid-cols-1 gap-4">
+              <ContextList title="기술 스택" items={context.tech_stack ?? []} />
+              <ContextList title="주요 기능" items={context.features ?? []} />
+              <ContextList
+                title="아키텍처 노트"
+                items={context.architecture_notes ?? []}
+              />
+              <ContextList title="리스크 포인트" items={context.risk_points ?? []} />
+            </div>
+            {context.areas && context.areas.length > 0 && (
+              <div>
+                <h3 className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                  프로젝트 영역
+                </h3>
+                <ul className="space-y-2">
+                  {context.areas.map((area) => (
+                    <li
+                      key={area.id}
+                      className="rounded border border-border/60 px-3 py-2 text-sm"
+                    >
+                      <span className="font-medium">{area.name}</span>
+                      {area.summary && (
+                        <span className="text-muted-foreground"> — {area.summary}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        ) : loading ? (
+          <p className="text-muted-foreground">불러오는 중…</p>
+        ) : (
+          <p className="text-muted-foreground">
+            아직 분석이 실행되지 않았습니다. 마법사에서 자료를 업로드하세요.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ContextList({ title, items }: { title: string; items: string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="rounded border border-border/60 p-3">
+      <h3 className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+        {title}
+      </h3>
+      <ul className="space-y-1 text-sm">
+        {items.map((item, index) => (
+          <li key={index} className="flex gap-2">
+            <span className="text-muted-foreground">·</span>
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -327,14 +369,8 @@ function ArtifactRow({ artifact }: { artifact: ProjectArtifactRead }) {
 
 // ---------- 질문 탭 ----------
 
-function QuestionsTab({
-  evaluationId,
-  adminPassword,
-}: {
-  evaluationId: string;
-  adminPassword: string;
-}) {
-  const questionsQuery = useAdminQuestions(evaluationId, adminPassword);
+function QuestionsTab({ evaluationId }: { evaluationId: string }) {
+  const questionsQuery = useAdminQuestions(evaluationId);
   const questions = questionsQuery.data ?? [];
 
   if (questionsQuery.isPending) {
@@ -366,6 +402,7 @@ function AdminQuestionCard({
   index: number;
   question: InterviewQuestionRead;
 }) {
+  const targets = question.evaluation_targets ?? [];
   return (
     <Card>
       <CardHeader className="space-y-2 pb-3">
@@ -378,38 +415,84 @@ function AdminQuestionCard({
           {question.question}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2 text-sm">
+      <CardContent className="space-y-3 text-sm">
+        {targets.length > 0 && (
+          <div>
+            <div className="mb-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">
+              이 질문이 확인하려는 점
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {targets.map((target) => (
+                <Badge key={target} variant="outline">
+                  {target}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
         {question.intent && (
-          <p>
-            <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">
-              의도
-            </span>
-            <br />
-            {question.intent}
-          </p>
+          <DetailRow label="의도" value={question.intent} />
         )}
         {question.verification_focus && (
-          <p className="text-muted-foreground">
-            검증 초점 · {question.verification_focus}
-          </p>
+          <DetailRow label="검증 초점" value={question.verification_focus} />
+        )}
+        {question.expected_signal && (
+          <DetailRow label="기대 신호" value={question.expected_signal} />
+        )}
+        {question.expected_evidence && (
+          <DetailRow label="필요 근거" value={question.expected_evidence} />
+        )}
+        {question.source_refs && question.source_refs.length > 0 && (
+          <>
+            <Separator />
+            <div>
+              <div className="mb-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                근거 출처
+              </div>
+              <ul className="space-y-1">
+                {question.source_refs.map((ref, refIndex) => {
+                  const lineRange =
+                    ref.line_start != null
+                      ? `:${ref.line_start}${ref.line_end != null ? `-${ref.line_end}` : ""}`
+                      : "";
+                  const slide = ref.page_or_slide ? ` · ${ref.page_or_slide}` : "";
+                  const role = ref.artifact_role ? `[${ref.artifact_role}] ` : "";
+                  return (
+                    <li
+                      key={`${ref.path}-${refIndex}`}
+                      className="font-mono text-xs text-muted-foreground"
+                    >
+                      {role}
+                      {ref.path}
+                      {lineRange}
+                      {slide}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>
   );
 }
 
-// ---------- 리포트 탭 (Phase 9 에서 본격 시각화) ----------
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="mb-0.5 text-xs uppercase tracking-[0.16em] text-muted-foreground">
+        {label}
+      </div>
+      <p className="leading-relaxed text-foreground">{value}</p>
+    </div>
+  );
+}
 
-function ReportTab({
-  evaluationId,
-  adminPassword,
-}: {
-  evaluationId: string;
-  adminPassword: string;
-}) {
-  const reportQuery = useLatestReport(evaluationId, adminPassword, {
-    retry: false,
-  });
+// ---------- 리포트 탭 ----------
+
+function ReportTab({ evaluationId }: { evaluationId: string }) {
+  const reportQuery = useLatestReport(evaluationId, { retry: false });
   const report = reportQuery.data;
 
   if (reportQuery.isPending) {
@@ -425,4 +508,3 @@ function ReportTab({
 
   return <ReportView report={report} audience="admin" />;
 }
-

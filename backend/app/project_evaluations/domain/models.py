@@ -58,16 +58,12 @@ from app.project_evaluations.domain.interview import (
 from app.project_evaluations.domain.question import InterviewQuestionRead
 from app.project_evaluations.domain.report import EvaluationReportRead
 from app.project_evaluations.domain.session import (
-    AdminVerifyRead,
-    AdminVerifyRequest,
     InterviewSessionRead,
     JoinEvaluationRead,
     JoinEvaluationRequest,
 )
 
 __all__ = [
-    "AdminVerifyRead",
-    "AdminVerifyRequest",
     "ArtifactRole",
     "ArtifactSourceType",
     "ArtifactStatus",

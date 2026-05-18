@@ -93,7 +93,6 @@ class ProjectEvaluationRepository:
         self,
         payload: ProjectEvaluationCreate,
         room_password_hash: str = "",
-        admin_password_hash: str = "",
     ) -> ProjectEvaluationRead:
         row = ProjectEvaluationRow(
             id=new_id(),
@@ -102,7 +101,6 @@ class ProjectEvaluationRepository:
             description=payload.description,
             room_name=payload.room_name or payload.project_name,
             room_password_hash=room_password_hash,
-            admin_password_hash=admin_password_hash,
             question_policy_json=to_json(payload.question_policy.model_dump()),
             status=EvaluationStatus.CREATED.value,
         )
@@ -376,6 +374,7 @@ class ProjectEvaluationRepository:
                 bloom_level=str(question["bloom_level"]),
                 difficulty=str(question.get("difficulty", Difficulty.MEDIUM.value)),
                 rubric_criteria_json=to_json(question.get("rubric_criteria", [])),
+                evaluation_targets_json=to_json(question.get("evaluation_targets", [])),
                 source_refs_json=to_json(question.get("source_refs", [])),
                 expected_signal=str(question.get("expected_signal", "")),
                 verification_focus=str(question.get("verification_focus", "")),
@@ -760,6 +759,7 @@ class ProjectEvaluationRepository:
             bloom_level=BloomLevel(_normalize_legacy_value(row.bloom_level)),
             difficulty=Difficulty(row.difficulty),
             rubric_criteria=rubric_from_json(row.rubric_criteria_json),
+            evaluation_targets=from_json(row.evaluation_targets_json, []) or [],
             source_refs=refs_from_json(row.source_refs_json),
             expected_signal=row.expected_signal,
             verification_focus=row.verification_focus,

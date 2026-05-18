@@ -536,6 +536,10 @@ sketch
 pyvenv.cfg
 pip-selfcheck.json
 
+# Python venv 의 [Ll]ib 만 무시하기 위한 negation. 프런트엔드 src 의 lib 코드 디렉터리는 추적한다.
+!frontend/src/lib/
+!frontend/src/lib/**
+
 ### VisualStudioCode ###
 .vscode/*
 !.vscode/settings.json

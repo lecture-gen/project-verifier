@@ -36,7 +36,7 @@ export default function HomePage() {
           </CardHeader>
           <CardContent>
             <Button asChild size="lg" className="w-full">
-              <Link href="/create/step-1-info">새 평가 방 만들기</Link>
+              <Link href="/create">새 평가 방 만들기</Link>
             </Button>
           </CardContent>
         </Card>
@@ -54,14 +54,6 @@ export default function HomePage() {
             </Button>
           </CardContent>
         </Card>
-      </section>
-
-      <section className="mt-12 rounded-lg border bg-muted/30 p-6">
-        <h2 className="text-lg font-medium">지원자이신가요?</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          교수자로부터 받은 인터뷰 입장 링크를 그대로 열어 주세요. 별도의 회원
-          가입은 필요하지 않습니다.
-        </p>
       </section>
     </main>
   );

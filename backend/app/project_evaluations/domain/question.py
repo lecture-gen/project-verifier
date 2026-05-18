@@ -21,6 +21,7 @@ class InterviewQuestionRead(BaseModel):
     bloom_level: BloomLevel
     difficulty: Difficulty
     rubric_criteria: list[RubricCriterion]
+    evaluation_targets: list[str] = Field(default_factory=list)
     source_refs: list[SourceReference] = Field(default_factory=list)
     expected_signal: str
     verification_focus: str = ""

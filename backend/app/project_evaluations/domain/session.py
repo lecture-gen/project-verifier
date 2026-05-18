@@ -19,14 +19,6 @@ class InterviewSessionRead(BaseModel):
     completed_at: datetime | None = None
 
 
-class AdminVerifyRequest(BaseModel):
-    admin_password: str = Field(min_length=1, max_length=200, repr=False)
-
-
-class AdminVerifyRead(BaseModel):
-    ok: bool
-
-
 class JoinEvaluationRequest(BaseModel):
     participant_name: str = Field(min_length=1, max_length=200)
     room_password: str = Field(min_length=1, max_length=200, repr=False)

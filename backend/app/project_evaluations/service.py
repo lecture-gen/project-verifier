@@ -16,13 +16,12 @@ from app.core.security import (
     hash_password as _hash_password,
     new_session_token as _new_session_token,
     verify_password as _verify_password,
-)
+)  # type: ignore[F401]  # admin_password 제거 이후 _hash_password/_verify_password는 room password에서만 사용
 from app.project_evaluations.analysis.context_builder import (
     build_project_context,
 )
 from app.project_evaluations.analysis.llm_client import LlmClient
 from app.project_evaluations.domain.models import (
-    AdminVerifyRead,
     ArtifactStatus,
     ArtifactUploadResult,
     EvaluationReportRead,
@@ -125,11 +124,6 @@ class ProjectEvaluationService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="방 비밀번호를 입력하세요.",
             )
-        if not payload.admin_password.strip():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="관리자 비밀번호를 입력하세요.",
-            )
         if sum(payload.question_policy.bloom_ratios.values()) == 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -138,7 +132,6 @@ class ProjectEvaluationService:
         return self.repository.create_evaluation(
             payload,
             room_password_hash=_hash_password(payload.room_password),
-            admin_password_hash=_hash_password(payload.admin_password),
         )
 
     def list_evaluation_summaries(self) -> list[ProjectEvaluationSummaryRead]:
@@ -148,10 +141,8 @@ class ProjectEvaluationService:
         self,
         evaluation_id: str,
         policy: QuestionGenerationPolicy,
-        admin_password: str | None,
-        client_id: str = "local",
     ) -> ProjectEvaluationRead:
-        self.ensure_admin(evaluation_id, admin_password, client_id)
+        self.get_evaluation(evaluation_id)
         if sum(policy.bloom_ratios.values()) == 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -648,32 +639,6 @@ class ProjectEvaluationService:
         self.get_evaluation(evaluation_id)
         return self.repository.list_questions(evaluation_id)
 
-    def verify_admin(
-        self, evaluation_id: str, admin_password: str, client_id: str = "local"
-    ) -> AdminVerifyRead:
-        self.ensure_admin(evaluation_id, admin_password, client_id)
-        return AdminVerifyRead(ok=True)
-
-    def ensure_admin(
-        self, evaluation_id: str, admin_password: str | None, client_id: str = "local"
-    ) -> None:
-        row = self.repository.get_evaluation_row(evaluation_id)
-        if row is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="프로젝트 평가를 찾을 수 없습니다.",
-            )
-        _check_auth_attempt("admin", evaluation_id, client_id)
-        if not admin_password or not row.admin_password_hash or not _verify_password(
-            admin_password, row.admin_password_hash
-        ):
-            _record_auth_failure("admin", evaluation_id, client_id)
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="관리자 비밀번호가 올바르지 않습니다.",
-            )
-        _clear_auth_failures("admin", evaluation_id, client_id)
-
     def join_evaluation(
         self,
         evaluation_id: str,
@@ -714,10 +679,8 @@ class ProjectEvaluationService:
         self,
         evaluation_id: str,
         participant_name: str = "",
-        admin_password: str | None = None,
-        client_id: str = "local",
     ) -> InterviewSessionRead:
-        self.ensure_admin(evaluation_id, admin_password, client_id)
+        self.get_evaluation(evaluation_id)
         return self._create_session(evaluation_id, participant_name)
 
     def _create_session(

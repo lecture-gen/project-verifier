@@ -41,7 +41,6 @@ def ensure_schema_columns(engine: Engine) -> None:
         "project_evaluations": {
             "room_name": "VARCHAR(200) NOT NULL DEFAULT ''",
             "room_password_hash": "TEXT NOT NULL DEFAULT ''",
-            "admin_password_hash": "TEXT NOT NULL DEFAULT ''",
             "question_policy_json": "TEXT NOT NULL DEFAULT '{}'",
         },
         "interview_sessions": {
@@ -55,6 +54,7 @@ def ensure_schema_columns(engine: Engine) -> None:
             "verification_focus": "TEXT NOT NULL DEFAULT ''",
             "expected_evidence": "TEXT NOT NULL DEFAULT ''",
             "source_ref_requirements": "TEXT NOT NULL DEFAULT ''",
+            "evaluation_targets_json": "TEXT NOT NULL DEFAULT '[]'",
         },
         "interview_turns": {
             "follow_up_reason": "TEXT NOT NULL DEFAULT ''",
