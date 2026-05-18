@@ -30,10 +30,10 @@ export function WizardShell({
   const totalLabel = String(WIZARD_STEP_TOTAL).padStart(2, "0");
 
   return (
-    <div className="grid w-full gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-16">
+    <div className="grid w-full grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-12 md:gap-16">
       <aside className="flex flex-col gap-10">
         <div className="flex items-baseline justify-between">
-          <span className="font-serif text-[5rem] leading-none tracking-tight text-foreground/90 lg:text-[6.5rem]">
+          <span className="font-serif text-[5rem] leading-none tracking-tight text-foreground/90 md:text-[6.5rem]">
             {stepLabel}
           </span>
           <span className="text-sm uppercase tracking-[0.3em] text-muted-foreground">
@@ -42,7 +42,7 @@ export function WizardShell({
         </div>
 
         <header className="space-y-4">
-          <h2 className="font-serif text-3xl leading-tight tracking-tight text-foreground lg:text-4xl">
+          <h2 className="font-serif text-3xl leading-tight tracking-tight text-foreground md:text-4xl">
             {title}
           </h2>
           <div className="text-base leading-relaxed text-muted-foreground">

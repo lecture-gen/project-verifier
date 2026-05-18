@@ -27,14 +27,23 @@ export default function CreateWizardPage() {
   const { currentStep, highestCompletedStep, goToStep } = useWizardState();
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // currentStep 이 바뀔 때 활성 stage 가 viewport 안으로 부드럽게 들어오도록 스크롤.
+  // currentStep 이 바뀔 때 활성 stage 상단으로 스크롤. transition 이 끝난 뒤 측정해야
+  // 정확한 위치로 가므로 rAF 두 번 + scroll-margin 보정을 사용한다.
   useEffect(() => {
     const node = containerRef.current?.querySelector<HTMLElement>(
       `[data-stage="${currentStep}"]`,
     );
-    if (node) {
-      node.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    if (!node) return;
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => {
+        node.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+    return () => {
+      cancelAnimationFrame(outer);
+      cancelAnimationFrame(inner);
+    };
   }, [currentStep]);
 
   return (
@@ -50,7 +59,7 @@ export default function CreateWizardPage() {
         />
       </div>
 
-      <div ref={containerRef} className="space-y-12">
+      <div ref={containerRef} className="space-y-40 lg:space-y-56">
         {(Object.keys(STAGES) as unknown as string[])
           .map((key) => Number(key) as WizardStep)
           .map((step) => {
@@ -62,8 +71,9 @@ export default function CreateWizardPage() {
                 key={step}
                 data-stage={step}
                 aria-hidden={!visible}
+                // scroll-mt 로 sticky/상단 여백 보정. 스크롤 목표 지점이 정확히 stage 상단으로 가도록.
                 className={cn(
-                  "transition-all duration-500 ease-out",
+                  "scroll-mt-24 transition-all duration-500 ease-out",
                   visible
                     ? "translate-y-0 opacity-100"
                     : "pointer-events-none translate-y-8 opacity-0",
