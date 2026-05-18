@@ -9,13 +9,12 @@ from app.project_evaluations.analysis.prompts import (
 )
 from app.project_evaluations.domain.models import (
     QuestionExchange,
-    RubricCriterion,
     RubricScoreItem,
 )
 from app.project_evaluations.persistence.models import InterviewQuestionRow
 from app.project_evaluations.persistence.repository import (
+    from_json,
     refs_from_json,
-    rubric_from_json,
 )
 
 
@@ -39,6 +38,67 @@ def _source_snippets(question: InterviewQuestionRow) -> list[str]:
     return [f"{ref.path}: {ref.snippet}" for ref in source_refs if ref.snippet]
 
 
+def _scoring_rubric_payload(question: InterviewQuestionRow) -> list[dict[str, object]]:
+    raw = from_json(question.scoring_rubric_json, [])
+    if not isinstance(raw, list) or not raw:
+        raise RuntimeError("답변 평가에 사용할 채점 기준표가 없습니다.")
+    payload: list[dict[str, object]] = []
+    for index, item in enumerate(raw):
+        description = str(item.get("description", "")).strip()
+        points = int(item.get("points", 0))
+        if not description or points <= 0:
+            raise RuntimeError(
+                f"채점 기준표 항목 #{index}이 비어 있거나 만점이 0 이하입니다. description={description!r}, points={points}"
+            )
+        payload.append({"description": description, "points": points, "index": index})
+    return payload
+
+
+def _expected_rubric_signature(scoring_rubric: list[dict[str, object]]) -> list[tuple[int, str, int]]:
+    return [
+        (int(item["index"]), str(item["description"]), int(item["points"]))
+        for item in scoring_rubric
+    ]
+
+
+def _validate_rubric_scores(
+    expected: list[tuple[int, str, int]],
+    rubric_scores: list[RubricScoreItem],
+    total_score: float,
+) -> None:
+    if len(rubric_scores) != len(expected):
+        raise RuntimeError(
+            "LLM 평가 결과의 채점 기준 항목 수가 입력과 다릅니다. "
+            f"expected={len(expected)}, actual={len(rubric_scores)}"
+        )
+    sorted_scores = sorted(rubric_scores, key=lambda item: item.criterion_index)
+    for expected_item, actual in zip(expected, sorted_scores):
+        ex_index, ex_description, ex_max = expected_item
+        if actual.criterion_index != ex_index:
+            raise RuntimeError(
+                f"채점 기준 인덱스 불일치: expected={ex_index}, actual={actual.criterion_index}"
+            )
+        if actual.criterion.strip() != ex_description:
+            raise RuntimeError(
+                "채점 기준 description 불일치: "
+                f"expected={ex_description!r}, actual={actual.criterion!r}"
+            )
+        if actual.max_points != ex_max:
+            raise RuntimeError(
+                f"채점 기준 max_points 불일치 (#{ex_index}): expected={ex_max}, actual={actual.max_points}"
+            )
+        if actual.score < 0 or actual.score > ex_max:
+            raise RuntimeError(
+                f"채점 점수 범위 위반 (#{ex_index}): 0..{ex_max} 사이여야 하는데 actual={actual.score}"
+            )
+    awarded_sum = sum(item.score for item in sorted_scores)
+    if int(round(total_score)) != awarded_sum:
+        raise RuntimeError(
+            "LLM 최상위 score가 rubric_scores 합과 일치하지 않습니다. "
+            f"score={total_score}, sum(rubric_scores)={awarded_sum}"
+        )
+
+
 def judge_answer(
     question: InterviewQuestionRow,
     answer_text: str,
@@ -50,11 +110,13 @@ def judge_answer(
         raise RuntimeError(
             "답변 평가에 필요한 LLM client가 비활성화되었습니다. OPENAI_API_KEY와 평가 모델 설정을 확인하세요."
         )
+    scoring_rubric = _scoring_rubric_payload(question)
     result: JudgeAnswerSchema = llm.parse(
         build_judge_prompt(
             question=question.question,
             intent=question.intent,
-            expected_signal=question.expected_signal,
+            expected_answer=question.expected_answer,
+            scoring_rubric=scoring_rubric,
             answer_text=answer_text,
             source_snippets=_source_snippets(question),
             conversation_history=conversation_history,
@@ -92,11 +154,13 @@ def generate_follow_up_question(
         raise RuntimeError(
             "꼬리질문 생성에 필요한 LLM client가 비활성화되었습니다. OPENAI_API_KEY와 평가 모델 설정을 확인하세요."
         )
+    scoring_rubric = _scoring_rubric_payload(question)
     result: FollowUpQuestionSchema = llm.parse(
         build_follow_up_prompt(
             question=question.question,
             intent=question.intent,
-            expected_signal=question.expected_signal,
+            expected_answer=question.expected_answer,
+            scoring_rubric=scoring_rubric,
             answer_text=answer_text,
             judge_reason=judge_reason,
             request_to_generator=request_to_generator,
@@ -120,13 +184,16 @@ def finalize_oral_evaluation(
 ) -> dict[str, object]:
     if llm is None or not llm.enabled():
         raise RuntimeError(
-            "최종 루브릭 채점에 필요한 LLM client가 비활성화되었습니다. OPENAI_API_KEY와 평가 모델 설정을 확인하세요."
+            "최종 채점에 필요한 LLM client가 비활성화되었습니다. OPENAI_API_KEY와 평가 모델 설정을 확인하세요."
         )
+    scoring_rubric = _scoring_rubric_payload(question)
+    expected_signature = _expected_rubric_signature(scoring_rubric)
     result: FinalizeAnswerSchema = llm.parse(
         build_finalize_prompt(
             question=question.question,
             intent=question.intent,
-            expected_signal=question.expected_signal,
+            expected_answer=question.expected_answer,
+            scoring_rubric=scoring_rubric,
             answer_text=answer_text,
             source_snippets=_source_snippets(question),
             conversation_history=conversation_history,
@@ -135,39 +202,26 @@ def finalize_oral_evaluation(
         max_tokens=2000,
     )
 
-    expected_criteria = set(rubric_from_json(question.rubric_criteria_json))
-    rubric_scores: list[RubricScoreItem] = []
-    for item in result.rubric_scores:
-        try:
-            criterion = RubricCriterion(item.criterion)
-        except ValueError as exc:
-            raise RuntimeError(
-                f"LLM이 지원하지 않는 루브릭 기준을 반환했습니다: {item.criterion}"
-            ) from exc
-        rubric_scores.append(
-            RubricScoreItem(
-                criterion=criterion,
-                score=item.score,
-                rationale=item.rationale,
-            )
+    rubric_scores: list[RubricScoreItem] = [
+        RubricScoreItem(
+            criterion=item.criterion,
+            criterion_index=item.criterion_index,
+            score=item.score,
+            max_points=item.max_points,
+            rationale=item.rationale,
         )
-
-    returned_criteria = {item.criterion for item in rubric_scores}
-    if returned_criteria != expected_criteria:
-        raise RuntimeError(
-            "LLM 평가 결과의 루브릭 기준이 질문 기준과 일치하지 않습니다. "
-            f"expected={sorted(c.value for c in expected_criteria)}, "
-            f"actual={sorted(c.value for c in returned_criteria)}"
-        )
+        for item in result.rubric_scores
+    ]
+    _validate_rubric_scores(expected_signature, rubric_scores, result.score)
 
     return {
-        "score": result.score,
+        "score": float(result.score),
         "evaluation_summary": result.evaluation_summary,
         "rubric_scores": rubric_scores,
         "evidence_matches": [*result.evidence_matches, *result.authenticity_signals],
         "evidence_mismatches": [
             *result.evidence_mismatches,
-            *result.missing_expected_signals,
+            *result.missing_expected_points,
         ],
         "suspicious_points": list(result.suspicious_points),
         "strengths": list(result.strengths),

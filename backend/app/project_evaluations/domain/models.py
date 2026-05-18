@@ -38,13 +38,11 @@ from app.project_evaluations.domain.enums import (
     ArtifactSourceType,
     ArtifactStatus,
     BloomLevel,
-    Difficulty,
     EvaluationStatus,
     FinalDecision,
     InterviewSessionStatus,
     InterviewTurnFlowStatus,
     InterviewTurnMode,
-    RubricCriterion,
 )
 from app.project_evaluations.domain.evaluation import (
     ProjectEvaluationCreate,
@@ -61,7 +59,10 @@ from app.project_evaluations.domain.interview import (
     InterviewTurnRead,
     StudentInterviewStateRead,
 )
-from app.project_evaluations.domain.question import InterviewQuestionRead
+from app.project_evaluations.domain.question import (
+    InterviewQuestionRead,
+    ScoringRubricItem,
+)
 from app.project_evaluations.domain.report import EvaluationReportRead
 from app.project_evaluations.domain.session import (
     InterviewSessionRead,
@@ -81,7 +82,6 @@ __all__ = [
     "BloomLevel",
     "DEFAULT_BLOOM_RATIOS",
     "DEFAULT_TOTAL_QUESTION_COUNT",
-    "Difficulty",
     "EvaluationReportRead",
     "EvaluationStatus",
     "ExtractedProjectContextRead",
@@ -109,8 +109,8 @@ __all__ = [
     "QuestionExchange",
     "QuestionGenerationPolicy",
     "QuestionPolicyUpdate",
-    "RubricCriterion",
     "RubricScoreItem",
+    "ScoringRubricItem",
     "SourceReference",
     "StructuralFactsRead",
     "StudentImplementationRiskRead",

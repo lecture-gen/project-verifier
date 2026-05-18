@@ -58,22 +58,6 @@ class BloomLevel(StrEnum):
     CREATE = "창안"
 
 
-class Difficulty(StrEnum):
-    EASY = "easy"
-    MEDIUM = "medium"
-    HARD = "hard"
-
-
-class RubricCriterion(StrEnum):
-    EVIDENCE_ALIGNMENT = "자료 근거 일치도"
-    IMPLEMENTATION_SPECIFICITY = "구현 구체성"
-    STRUCTURAL_UNDERSTANDING = "구조 이해도"
-    DECISION_UNDERSTANDING = "의사결정 이해도"
-    TROUBLESHOOTING_EXPERIENCE = "트러블슈팅 경험"
-    LIMITATION_AWARENESS = "한계 인식"
-    ANSWER_CONSISTENCY = "답변 일관성"
-
-
 class InterviewTurnMode(StrEnum):
     ANSWER = "answer"
     FOLLOW_UP = "follow_up"

@@ -57,12 +57,6 @@ def ensure_schema_columns(engine: Engine) -> None:
             "role_in_project": "TEXT NOT NULL DEFAULT ''",
             "key_concerns_json": "TEXT NOT NULL DEFAULT '[]'",
         },
-        "interview_questions": {
-            "verification_focus": "TEXT NOT NULL DEFAULT ''",
-            "expected_evidence": "TEXT NOT NULL DEFAULT ''",
-            "source_ref_requirements": "TEXT NOT NULL DEFAULT ''",
-            "evaluation_targets_json": "TEXT NOT NULL DEFAULT '[]'",
-        },
         "interview_turns": {
             "follow_up_reason": "TEXT NOT NULL DEFAULT ''",
             "finalized_score": "FLOAT",

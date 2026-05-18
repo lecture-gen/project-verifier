@@ -1,7 +1,5 @@
 from pydantic import BaseModel, Field
 
-from app.project_evaluations.domain.enums import RubricCriterion
-
 
 class SourceReference(BaseModel):
     path: str
@@ -15,8 +13,12 @@ class SourceReference(BaseModel):
 
 
 class RubricScoreItem(BaseModel):
-    criterion: RubricCriterion
-    score: int = Field(ge=0, le=3)
+    """문제별 LLM 생성 채점 기준 한 항목에 대한 채점 결과."""
+
+    criterion: str
+    criterion_index: int = Field(ge=0)
+    score: int = Field(ge=0)
+    max_points: int = Field(ge=1)
     rationale: str = ""
 
 

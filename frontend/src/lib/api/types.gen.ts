@@ -614,11 +614,6 @@ export interface components {
             /** File */
             file: string;
         };
-        /**
-         * Difficulty
-         * @enum {string}
-         */
-        Difficulty: "easy" | "medium" | "hard";
         /** EvaluationReportRead */
         EvaluationReportRead: {
             /** Id */
@@ -630,6 +625,16 @@ export interface components {
             final_decision: components["schemas"]["FinalDecision"];
             /** Authenticity Score */
             authenticity_score: number;
+            /**
+             * Total Score
+             * @default 0
+             */
+            total_score: number;
+            /**
+             * Total Max Score
+             * @default 100
+             */
+            total_max_score: number;
             /** Summary */
             summary: string;
             /** Area Analyses */
@@ -642,10 +647,6 @@ export interface components {
             }[];
             /** Bloom Summary */
             bloom_summary?: {
-                [key: string]: unknown;
-            }[];
-            /** Rubric Summary */
-            rubric_summary?: {
                 [key: string]: unknown;
             }[];
             /** Evidence Alignment */
@@ -732,30 +733,14 @@ export interface components {
             /** Intent */
             intent: string;
             bloom_level: components["schemas"]["BloomLevel"];
-            difficulty: components["schemas"]["Difficulty"];
-            /** Rubric Criteria */
-            rubric_criteria: components["schemas"]["RubricCriterion"][];
-            /** Evaluation Targets */
-            evaluation_targets?: string[];
+            /** Expected Answer */
+            expected_answer: string;
+            /** Scoring Rubric */
+            scoring_rubric?: components["schemas"]["ScoringRubricItem"][];
+            /** Max Points */
+            max_points: number;
             /** Source Refs */
             source_refs?: components["schemas"]["SourceReference"][];
-            /** Expected Signal */
-            expected_signal: string;
-            /**
-             * Verification Focus
-             * @default
-             */
-            verification_focus: string;
-            /**
-             * Expected Evidence
-             * @default
-             */
-            expected_evidence: string;
-            /**
-             * Source Ref Requirements
-             * @default
-             */
-            source_ref_requirements: string;
             /** Order Index */
             order_index: number;
             /**
@@ -1131,21 +1116,28 @@ export interface components {
         QuestionPolicyUpdate: {
             question_policy: components["schemas"]["QuestionGenerationPolicy"];
         };
-        /**
-         * RubricCriterion
-         * @enum {string}
-         */
-        RubricCriterion: "자료 근거 일치도" | "구현 구체성" | "구조 이해도" | "의사결정 이해도" | "트러블슈팅 경험" | "한계 인식" | "답변 일관성";
         /** RubricScoreItem */
         RubricScoreItem: {
-            criterion: components["schemas"]["RubricCriterion"];
+            /** Criterion */
+            criterion: string;
+            /** Criterion Index */
+            criterion_index: number;
             /** Score */
             score: number;
+            /** Max Points */
+            max_points: number;
             /**
              * Rationale
              * @default
              */
             rationale: string;
+        };
+        /** ScoringRubricItem */
+        ScoringRubricItem: {
+            /** Description */
+            description: string;
+            /** Points */
+            points: number;
         };
         /** SourceReference */
         SourceReference: {

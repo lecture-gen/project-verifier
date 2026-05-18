@@ -272,7 +272,7 @@ export function InterviewRunner({
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="secondary">{question.bloom_level}</Badge>
-                  <Badge variant="outline">{question.difficulty}</Badge>
+                  <Badge variant="default">{question.max_points}점 만점</Badge>
                 </div>
                 <div className="flex items-center gap-3">
                   <Label className="flex cursor-pointer items-center gap-2 text-xs font-normal text-muted-foreground">
@@ -292,7 +292,7 @@ export function InterviewRunner({
               </CardTitle>
               {question.intent && (
                 <p className="text-sm text-muted-foreground">
-                  의도 · {question.intent}
+                  출제 의도 · {question.intent}
                 </p>
               )}
             </CardHeader>

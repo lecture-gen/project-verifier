@@ -12,7 +12,6 @@ from app.project_evaluations.domain.models import (
     ArtifactSourceType,
     ArtifactStatus,
     BloomLevel,
-    Difficulty,
     EvaluationReportRead,
     EvaluationStatus,
     ExtractedProjectContextRead,
@@ -29,8 +28,8 @@ from app.project_evaluations.domain.models import (
     ProjectEvaluationSummaryRead,
     QuestionExchange,
     QuestionGenerationPolicy,
-    RubricCriterion,
     RubricScoreItem,
+    ScoringRubricItem,
     SourceReference,
 )
 from app.project_evaluations.persistence.models import (
@@ -72,8 +71,8 @@ def _normalize_legacy_value(value: str) -> str:
     return "창안" if value == "창조" else value
 
 
-def rubric_from_json(value: str) -> list[RubricCriterion]:
-    return [RubricCriterion(_normalize_legacy_value(item)) for item in from_json(value, [])]
+def scoring_rubric_from_json(value: str) -> list[ScoringRubricItem]:
+    return [ScoringRubricItem(**item) for item in from_json(value, [])]
 
 
 def _validate_question_source_refs(question: dict[str, Any]) -> None:
@@ -361,6 +360,12 @@ class ProjectEvaluationRepository:
         )
         rows = []
         for index, question in enumerate(questions):
+            scoring_rubric = list(question.get("scoring_rubric", []))
+            max_points = int(question.get("max_points", 0))
+            if max_points <= 0 or not scoring_rubric:
+                raise RuntimeError(
+                    "질문 저장에는 채점 기준표(scoring_rubric)와 양수 max_points가 필요합니다."
+                )
             row = InterviewQuestionRow(
                 id=new_id(),
                 evaluation_id=evaluation_id,
@@ -368,14 +373,10 @@ class ProjectEvaluationRepository:
                 question=str(question["question"]),
                 intent=str(question.get("intent", "")),
                 bloom_level=str(question["bloom_level"]),
-                difficulty=str(question.get("difficulty", Difficulty.MEDIUM.value)),
-                rubric_criteria_json=to_json(question.get("rubric_criteria", [])),
-                evaluation_targets_json=to_json(question.get("evaluation_targets", [])),
+                expected_answer=str(question.get("expected_answer", "")),
+                scoring_rubric_json=to_json(scoring_rubric),
+                max_points=max_points,
                 source_refs_json=to_json(question.get("source_refs", [])),
-                expected_signal=str(question.get("expected_signal", "")),
-                verification_focus=str(question.get("verification_focus", "")),
-                expected_evidence=str(question.get("expected_evidence", "")),
-                source_ref_requirements=str(question.get("source_ref_requirements", "")),
                 order_index=index,
             )
             self.session.add(row)
@@ -474,8 +475,10 @@ class ProjectEvaluationRepository:
                     RubricScoreRow(
                         id=new_id(),
                         turn_id=turn.id,
-                        criterion=item.criterion.value,
+                        criterion=item.criterion,
+                        criterion_index=item.criterion_index,
                         score=item.score,
+                        max_points=item.max_points,
                         rationale=item.rationale,
                     )
                 )
@@ -518,8 +521,10 @@ class ProjectEvaluationRepository:
                 RubricScoreRow(
                     id=new_id(),
                     turn_id=turn.id,
-                    criterion=item.criterion.value,
+                    criterion=item.criterion,
+                    criterion_index=item.criterion_index,
                     score=item.score,
+                    max_points=item.max_points,
                     rationale=item.rationale,
                 )
             )
@@ -542,12 +547,16 @@ class ProjectEvaluationRepository:
 
     def get_rubric_scores(self, turn_id: str) -> list[RubricScoreItem]:
         rows = self.session.scalars(
-            select(RubricScoreRow).where(RubricScoreRow.turn_id == turn_id)
+            select(RubricScoreRow)
+            .where(RubricScoreRow.turn_id == turn_id)
+            .order_by(RubricScoreRow.criterion_index)
         ).all()
         return [
             RubricScoreItem(
-                criterion=RubricCriterion(_normalize_legacy_value(row.criterion)),
+                criterion=row.criterion,
+                criterion_index=row.criterion_index,
                 score=row.score,
+                max_points=row.max_points,
                 rationale=row.rationale,
             )
             for row in rows
@@ -557,14 +566,18 @@ class ProjectEvaluationRepository:
         if not turn_ids:
             return {}
         rows = self.session.scalars(
-            select(RubricScoreRow).where(RubricScoreRow.turn_id.in_(turn_ids))
+            select(RubricScoreRow)
+            .where(RubricScoreRow.turn_id.in_(turn_ids))
+            .order_by(RubricScoreRow.criterion_index)
         ).all()
         scores: dict[str, list[dict[str, Any]]] = {}
         for row in rows:
             scores.setdefault(row.turn_id, []).append(
                 {
-                    "criterion": _normalize_legacy_value(row.criterion),
+                    "criterion": row.criterion,
+                    "criterion_index": row.criterion_index,
                     "score": row.score,
+                    "max_points": row.max_points,
                     "rationale": row.rationale,
                 }
             )
@@ -586,11 +599,12 @@ class ProjectEvaluationRepository:
         session_id: str,
         final_decision: FinalDecision,
         authenticity_score: float,
+        total_score: float,
+        total_max_score: float,
         summary: str,
         area_analyses: list[dict[str, Any]],
         question_evaluations: list[dict[str, Any]],
         bloom_summary: list[dict[str, Any]],
-        rubric_summary: list[dict[str, Any]],
         evidence_alignment: list[str],
         strengths: list[str],
         suspicious_points: list[str],
@@ -606,11 +620,12 @@ class ProjectEvaluationRepository:
             session_id=session_id,
             final_decision=final_decision.value,
             authenticity_score=authenticity_score,
+            total_score=total_score,
+            total_max_score=total_max_score,
             summary=summary,
             area_analyses_json=to_json(area_analyses),
             question_evaluations_json=to_json(question_evaluations),
             bloom_summary_json=to_json(bloom_summary),
-            rubric_summary_json=to_json(rubric_summary),
             evidence_alignment_json=to_json(evidence_alignment),
             strengths_json=to_json(strengths),
             suspicious_points_json=to_json(suspicious_points),
@@ -632,11 +647,12 @@ class ProjectEvaluationRepository:
         session_id: str,
         final_decision: FinalDecision,
         authenticity_score: float,
+        total_score: float,
+        total_max_score: float,
         summary: str,
         area_analyses: list[dict[str, Any]],
         question_evaluations: list[dict[str, Any]],
         bloom_summary: list[dict[str, Any]],
-        rubric_summary: list[dict[str, Any]],
         evidence_alignment: list[str],
         strengths: list[str],
         suspicious_points: list[str],
@@ -648,11 +664,12 @@ class ProjectEvaluationRepository:
             session_id=session_id,
             final_decision=final_decision.value,
             authenticity_score=authenticity_score,
+            total_score=total_score,
+            total_max_score=total_max_score,
             summary=summary,
             area_analyses_json=to_json(area_analyses),
             question_evaluations_json=to_json(question_evaluations),
             bloom_summary_json=to_json(bloom_summary),
-            rubric_summary_json=to_json(rubric_summary),
             evidence_alignment_json=to_json(evidence_alignment),
             strengths_json=to_json(strengths),
             suspicious_points_json=to_json(suspicious_points),
@@ -771,14 +788,10 @@ class ProjectEvaluationRepository:
             question=row.question,
             intent=row.intent,
             bloom_level=BloomLevel(_normalize_legacy_value(row.bloom_level)),
-            difficulty=Difficulty(row.difficulty),
-            rubric_criteria=rubric_from_json(row.rubric_criteria_json),
-            evaluation_targets=from_json(row.evaluation_targets_json, []) or [],
+            expected_answer=row.expected_answer,
+            scoring_rubric=scoring_rubric_from_json(row.scoring_rubric_json),
+            max_points=row.max_points,
             source_refs=refs_from_json(row.source_refs_json),
-            expected_signal=row.expected_signal,
-            verification_focus=row.verification_focus,
-            expected_evidence=row.expected_evidence,
-            source_ref_requirements=row.source_ref_requirements,
             order_index=row.order_index,
             created_at=row.created_at,
         )
@@ -838,11 +851,12 @@ class ProjectEvaluationRepository:
             session_id=row.session_id,
             final_decision=FinalDecision(row.final_decision),
             authenticity_score=row.authenticity_score,
+            total_score=row.total_score,
+            total_max_score=row.total_max_score,
             summary=row.summary,
             area_analyses=from_json(row.area_analyses_json, []),
             question_evaluations=from_json(row.question_evaluations_json, []),
             bloom_summary=from_json(row.bloom_summary_json, []),
-            rubric_summary=from_json(row.rubric_summary_json, []),
             evidence_alignment=from_json(row.evidence_alignment_json, []),
             strengths=from_json(row.strengths_json, []),
             suspicious_points=from_json(row.suspicious_points_json, []),

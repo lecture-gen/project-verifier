@@ -3,11 +3,12 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.project_evaluations.domain.common import SourceReference
-from app.project_evaluations.domain.enums import (
-    BloomLevel,
-    Difficulty,
-    RubricCriterion,
-)
+from app.project_evaluations.domain.enums import BloomLevel
+
+
+class ScoringRubricItem(BaseModel):
+    description: str
+    points: int = Field(ge=1)
 
 
 class InterviewQuestionRead(BaseModel):
@@ -19,13 +20,9 @@ class InterviewQuestionRead(BaseModel):
     question: str
     intent: str
     bloom_level: BloomLevel
-    difficulty: Difficulty
-    rubric_criteria: list[RubricCriterion]
-    evaluation_targets: list[str] = Field(default_factory=list)
+    expected_answer: str
+    scoring_rubric: list[ScoringRubricItem] = Field(default_factory=list)
+    max_points: int
     source_refs: list[SourceReference] = Field(default_factory=list)
-    expected_signal: str
-    verification_focus: str = ""
-    expected_evidence: str = ""
-    source_ref_requirements: str = ""
     order_index: int
     created_at: datetime

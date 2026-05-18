@@ -426,8 +426,8 @@ export function Stage4Questions() {
     <WizardShell step={4}>
       <div className="space-y-2 text-sm text-muted-foreground">
         <p>
-          앞서 정의한 정책으로 자료 근거 기반 질문을 생성합니다. 각 질문은 의도와
-          검증 초점, 평가 포인트, 근거 출처를 함께 갖고 있습니다.
+          앞서 정의한 정책으로 자료 근거 기반 질문을 생성합니다. 각 질문은 출제 의도,
+          기대 답안, 채점 기준표, 근거 출처를 함께 갖고 있습니다.
         </p>
         <p>정책을 다시 바꾸고 싶다면 이전 단계로 돌아가세요. 재생성은 정책 변경 후 다시 실행됩니다.</p>
       </div>
@@ -489,9 +489,14 @@ export function Stage4Questions() {
 
       {questions.length > 0 ? (
         <section className="space-y-4">
-          <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            생성된 질문 ({questions.length})
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              생성된 질문 ({questions.length})
+            </h3>
+            <span className="rounded-md border border-border/60 px-2 py-1 text-xs text-muted-foreground">
+              최종 리포트에서 점수는 100점으로 정규화됩니다.
+            </span>
+          </div>
           <ol className="space-y-3">
             {questions.map((question, index) => (
               <li key={question.id}>
@@ -516,72 +521,75 @@ function QuestionCard({
   index: number;
   question: InterviewQuestionRead;
 }) {
-  const targets = question.evaluation_targets ?? [];
+  const rubric = question.scoring_rubric ?? [];
+  const rubricTotal = rubric.reduce((sum, item) => sum + (item.points ?? 0), 0);
   return (
     <Card>
       <CardHeader className="space-y-2 pb-3">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="font-mono text-muted-foreground">Q{index}</span>
           <Badge variant="secondary">{question.bloom_level}</Badge>
-          <Badge variant="outline">{question.difficulty}</Badge>
+          <Badge variant="default">{question.max_points}점 만점</Badge>
         </div>
         <CardTitle className="text-base leading-snug">{question.question}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
-        {targets.length > 0 && (
+        {question.intent && <DetailRow label="출제 의도" value={question.intent} />}
+        {question.expected_answer && (
+          <DetailRow label="기대 답안" value={question.expected_answer} />
+        )}
+        {rubric.length > 0 && (
           <div>
-            <div className="mb-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-              이 질문이 확인하려는 점
+            <div className="mb-1 flex items-center justify-between text-xs uppercase tracking-[0.16em] text-muted-foreground">
+              <span>채점 기준표</span>
+              <span className="font-mono normal-case tracking-normal">
+                합계 {rubricTotal}점
+              </span>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {targets.map((target) => (
-                <Badge key={target} variant="outline">
-                  {target}
-                </Badge>
+            <ul className="divide-y divide-border/60 rounded-md border border-border/60">
+              {rubric.map((item, itemIndex) => (
+                <li
+                  key={`${item.description}-${itemIndex}`}
+                  className="flex items-start justify-between gap-3 px-3 py-2"
+                >
+                  <span className="leading-relaxed text-foreground">
+                    {item.description}
+                  </span>
+                  <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                    {item.points}점
+                  </span>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         )}
-        {question.intent && <DetailRow label="의도" value={question.intent} />}
-        {question.verification_focus && (
-          <DetailRow label="검증 초점" value={question.verification_focus} />
-        )}
-        {question.expected_signal && (
-          <DetailRow label="기대 신호" value={question.expected_signal} />
-        )}
-        {question.expected_evidence && (
-          <DetailRow label="필요 근거" value={question.expected_evidence} />
-        )}
         {question.source_refs && question.source_refs.length > 0 && (
-          <>
-            <Separator />
-            <div>
-              <div className="mb-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                근거 출처
-              </div>
-              <ul className="space-y-1">
-                {question.source_refs.map((ref, refIndex) => {
-                  const lineRange =
-                    ref.line_start != null
-                      ? `:${ref.line_start}${ref.line_end != null ? `-${ref.line_end}` : ""}`
-                      : "";
-                  const slide = ref.page_or_slide ? ` · ${ref.page_or_slide}` : "";
-                  const role = ref.artifact_role ? `[${ref.artifact_role}] ` : "";
-                  return (
-                    <li
-                      key={`${ref.path}-${refIndex}`}
-                      className="font-mono text-xs text-muted-foreground"
-                    >
-                      {role}
-                      {ref.path}
-                      {lineRange}
-                      {slide}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          </>
+          <details className="group rounded-md border border-border/60 px-3 py-2">
+            <summary className="cursor-pointer select-none text-xs uppercase tracking-[0.16em] text-muted-foreground">
+              근거 출처 ({question.source_refs.length})
+            </summary>
+            <ul className="mt-2 space-y-1">
+              {question.source_refs.map((ref, refIndex) => {
+                const lineRange =
+                  ref.line_start != null
+                    ? `:${ref.line_start}${ref.line_end != null ? `-${ref.line_end}` : ""}`
+                    : "";
+                const slide = ref.page_or_slide ? ` · ${ref.page_or_slide}` : "";
+                const role = ref.artifact_role ? `[${ref.artifact_role}] ` : "";
+                return (
+                  <li
+                    key={`${ref.path}-${refIndex}`}
+                    className="font-mono text-xs text-muted-foreground"
+                  >
+                    {role}
+                    {ref.path}
+                    {lineRange}
+                    {slide}
+                  </li>
+                );
+              })}
+            </ul>
+          </details>
         )}
       </CardContent>
     </Card>

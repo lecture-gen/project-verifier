@@ -95,18 +95,12 @@ class InterviewQuestionRow(Base):
     question: Mapped[str] = mapped_column(Text, nullable=False)
     intent: Mapped[str] = mapped_column(Text, nullable=False)
     bloom_level: Mapped[str] = mapped_column(String(40), nullable=False)
-    difficulty: Mapped[str] = mapped_column(String(40), nullable=False)
-    rubric_criteria_json: Mapped[str] = mapped_column(
+    expected_answer: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    scoring_rubric_json: Mapped[str] = mapped_column(
         Text, nullable=False, default="[]"
     )
-    evaluation_targets_json: Mapped[str] = mapped_column(
-        Text, nullable=False, default="[]"
-    )
+    max_points: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     source_refs_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
-    expected_signal: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    verification_focus: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    expected_evidence: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    source_ref_requirements: Mapped[str] = mapped_column(Text, nullable=False, default="")
     order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now
@@ -177,8 +171,10 @@ class RubricScoreRow(Base):
     turn_id: Mapped[str] = mapped_column(
         ForeignKey("interview_turns.id"), index=True, nullable=False
     )
-    criterion: Mapped[str] = mapped_column(String(80), nullable=False)
+    criterion: Mapped[str] = mapped_column(String(400), nullable=False)
+    criterion_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_points: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     rationale: Mapped[str] = mapped_column(Text, nullable=False, default="")
 
 
@@ -196,13 +192,14 @@ class EvaluationReportRow(Base):
     authenticity_score: Mapped[float] = mapped_column(
         Float, nullable=False, default=0.0
     )
+    total_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    total_max_score: Mapped[float] = mapped_column(Float, nullable=False, default=100.0)
     summary: Mapped[str] = mapped_column(Text, nullable=False)
     area_analyses_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     question_evaluations_json: Mapped[str] = mapped_column(
         Text, nullable=False, default="[]"
     )
     bloom_summary_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
-    rubric_summary_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     evidence_alignment_json: Mapped[str] = mapped_column(
         Text, nullable=False, default="[]"
     )

@@ -70,7 +70,7 @@ export type QuestionPolicyUpdate = Schemas["QuestionPolicyUpdate"];
 export type QuestionGenerationPolicy = Schemas["QuestionGenerationPolicy"];
 export type InterviewQuestionRead = Schemas["InterviewQuestionRead"];
 export type BloomLevel = Schemas["BloomLevel"];
-export type Difficulty = Schemas["Difficulty"];
+export type ScoringRubricItem = Schemas["ScoringRubricItem"];
 
 export type InterviewSessionRead = Schemas["InterviewSessionRead"];
 export type InterviewSessionStatus = Schemas["InterviewSessionStatus"];
@@ -87,7 +87,6 @@ export type InterviewSpeechSynthesisRequest = Schemas["InterviewSpeechSynthesisR
 
 export type EvaluationReportRead = Schemas["EvaluationReportRead"];
 export type FinalDecision = Schemas["FinalDecision"];
-export type RubricCriterion = Schemas["RubricCriterion"];
 export type RubricScoreItem = Schemas["RubricScoreItem"];
 export type SourceReference = Schemas["SourceReference"];
 

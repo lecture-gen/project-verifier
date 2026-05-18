@@ -10,11 +10,9 @@ from app.project_evaluations.analysis.prompts import (
 from app.project_evaluations.domain.models import (
     BLOOM_ORDER,
     BloomLevel,
-    Difficulty,
     QuestionGenerationPolicy,
     normalize_bloom_level,
 )
-from app.project_evaluations.interview.rubric import DEFAULT_RUBRIC
 from app.project_evaluations.persistence.models import (
     ExtractedProjectContextRow,
     ProjectAreaRow,
@@ -108,26 +106,41 @@ def _generate_with_llm(
         buckets[bloom].append(q)
 
     ordered_questions = [buckets[level].pop(0) for level in sequence]
+
+    # 각 문제 scoring_rubric 유효성 검증 — points 합은 자유, 양수면 됨.
+    # 학생 총점은 리포트 단계에서 (sum_awarded / sum_max) * 100 으로 정규화한다.
+    per_question_max_points: list[int] = []
+    for index, q in enumerate(ordered_questions):
+        if not q.scoring_rubric:
+            raise RuntimeError(
+                f"LLM이 질문 #{index + 1}의 채점 기준표를 비웠습니다. scoring_rubric은 1~5개여야 합니다."
+            )
+        item_max = sum(int(item.points) for item in q.scoring_rubric)
+        if item_max <= 0:
+            raise RuntimeError(
+                f"LLM이 질문 #{index + 1}의 채점 기준 합계를 0 이하로 반환했습니다."
+            )
+        per_question_max_points.append(item_max)
+
     questions = []
     for index, q in enumerate(ordered_questions):
         bloom = sequence[index]
-        difficulty = _parse_difficulty(q.difficulty)
         area = areas[index % len(areas)] if areas else None
         preferred_paths = [ref.path for ref in q.source_refs]
         _validate_llm_source_refs(q.question, preferred_paths, context_pack.source_refs)
+        text_for_overlap = f"{q.question} {q.intent} {q.expected_answer}"
         source_refs = _question_source_refs(
             context_pack.source_refs,
-            text=f"{q.question} {q.intent} {q.verification_focus} {q.expected_signal} {q.expected_evidence}",
+            text=text_for_overlap,
             preferred_paths=preferred_paths,
         )
         if not source_refs and area and _is_structural_question(q):
             source_refs = _structural_source_refs(area, context_pack.source_refs)
         source_refs = _ensure_question_source_refs(q.question, source_refs)
-        evaluation_targets = [t.strip() for t in (q.evaluation_targets or []) if t and t.strip()]
-        if not evaluation_targets:
-            raise RuntimeError(
-                "LLM이 evaluation_targets를 비웠습니다. 질문이 무엇을 검증하려는지 확인해야 합니다."
-            )
+        scoring_rubric = [
+            {"description": item.description.strip(), "points": int(item.points)}
+            for item in q.scoring_rubric
+        ]
         questions.append(
             {
                 "evaluation_id": evaluation_id,
@@ -135,14 +148,10 @@ def _generate_with_llm(
                 "question": q.question,
                 "intent": q.intent,
                 "bloom_level": bloom.value,
-                "difficulty": difficulty.value,
-                "rubric_criteria": [c.value for c in DEFAULT_RUBRIC],
-                "evaluation_targets": evaluation_targets[:3],
+                "expected_answer": q.expected_answer,
+                "scoring_rubric": scoring_rubric,
+                "max_points": per_question_max_points[index],
                 "source_refs": source_refs,
-                "expected_signal": q.expected_signal,
-                "verification_focus": q.verification_focus,
-                "expected_evidence": q.expected_evidence,
-                "source_ref_requirements": q.source_ref_requirements,
             }
         )
     return questions
@@ -228,7 +237,7 @@ def _structural_source_refs(area: ProjectAreaRow, source_refs: list[dict[str, ob
 def _is_structural_question(question: object) -> bool:
     text = " ".join(
         str(getattr(question, field, ""))
-        for field in ("question", "intent", "verification_focus", "expected_signal", "expected_evidence")
+        for field in ("question", "intent", "expected_answer")
     )
     structural_markers = ("구조", "아키텍처", "architecture", "설계", "계층", "모듈", "흐름", "연결", "분리", "책임")
     return any(marker.lower() in text.lower() for marker in structural_markers)
@@ -284,8 +293,3 @@ def _ref_overlap_score(ref: dict[str, object], text: str) -> int:
     haystack = f"{ref.get('path', '')} {ref.get('snippet', '')} {ref.get('artifact_role', '')} {ref.get('chunk_type', '')}".lower()
     tokens = re.findall(r"[A-Za-z_][A-Za-z0-9_]{3,}|[가-힣]{2,}", text.lower())
     return sum(1 for token in set(tokens) if token in haystack)
-def _parse_difficulty(value: str) -> Difficulty:
-    try:
-        return Difficulty(value.lower())
-    except ValueError as exc:
-        raise RuntimeError(f"LLM이 지원하지 않는 난이도를 반환했습니다: {value}") from exc

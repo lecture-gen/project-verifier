@@ -4,14 +4,7 @@
 export interface BloomSummaryRow {
   bloom_level: string;
   question_count: number;
-  average_score: number; // 0~100
-}
-
-export interface RubricSummaryRow {
-  criterion: string;
-  average_score: number; // 0~3
-  max_score: number;
-  question_count: number;
+  average_score: number; // 0~100 (백분율)
 }
 
 export interface AreaAnalysisRow {
@@ -21,12 +14,21 @@ export interface AreaAnalysisRow {
   summary: string;
 }
 
+export interface RubricBreakdownRow {
+  description: string;
+  awarded: number;
+  max_points: number;
+  rationale: string;
+}
+
 export interface QuestionEvaluationRow {
   order_index: number;
   question: string;
-  score: number; // 0~100
+  score: number; // 0 ~ max_score
+  max_score: number;
   bloom_level: string;
   summary: string;
+  rubric_breakdown: RubricBreakdownRow[];
 }
 
 function asString(value: unknown, fallback = ""): string {
@@ -54,24 +56,6 @@ export function parseBloomSummary(rows: unknown): BloomSummaryRow[] {
     .filter((row): row is BloomSummaryRow => row !== null);
 }
 
-export function parseRubricSummary(rows: unknown): RubricSummaryRow[] {
-  if (!Array.isArray(rows)) return [];
-  return rows
-    .map((row) => {
-      if (!row || typeof row !== "object") return null;
-      const r = row as Record<string, unknown>;
-      const criterion = asString(r.criterion);
-      if (!criterion) return null;
-      return {
-        criterion,
-        average_score: asNumber(r.average_score),
-        max_score: asNumber(r.max_score, 3),
-        question_count: asNumber(r.question_count),
-      } satisfies RubricSummaryRow;
-    })
-    .filter((row): row is RubricSummaryRow => row !== null);
-}
-
 export function parseAreaAnalyses(rows: unknown): AreaAnalysisRow[] {
   if (!Array.isArray(rows)) return [];
   return rows
@@ -90,6 +74,24 @@ export function parseAreaAnalyses(rows: unknown): AreaAnalysisRow[] {
     .filter((row): row is AreaAnalysisRow => row !== null);
 }
 
+function parseRubricBreakdown(rows: unknown): RubricBreakdownRow[] {
+  if (!Array.isArray(rows)) return [];
+  return rows
+    .map((row) => {
+      if (!row || typeof row !== "object") return null;
+      const r = row as Record<string, unknown>;
+      const description = asString(r.description);
+      if (!description) return null;
+      return {
+        description,
+        awarded: asNumber(r.awarded),
+        max_points: asNumber(r.max_points, 1),
+        rationale: asString(r.rationale),
+      } satisfies RubricBreakdownRow;
+    })
+    .filter((row): row is RubricBreakdownRow => row !== null);
+}
+
 export function parseQuestionEvaluations(rows: unknown): QuestionEvaluationRow[] {
   if (!Array.isArray(rows)) return [];
   return rows
@@ -100,8 +102,10 @@ export function parseQuestionEvaluations(rows: unknown): QuestionEvaluationRow[]
         order_index: asNumber(r.order_index),
         question: asString(r.question),
         score: asNumber(r.score),
+        max_score: asNumber(r.max_score, 1),
         bloom_level: asString(r.bloom_level),
         summary: asString(r.summary),
+        rubric_breakdown: parseRubricBreakdown(r.rubric_breakdown),
       } satisfies QuestionEvaluationRow;
     })
     .filter((row): row is QuestionEvaluationRow => row !== null);
