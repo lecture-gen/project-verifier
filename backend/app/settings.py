@@ -1,4 +1,3 @@
-from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,22 +30,17 @@ class ApiSettings(BaseSettings):
     APP_MAX_DOCX_PARAGRAPHS: int = 2_000
     APP_MAX_PPTX_SLIDES: int = 80
     PUBLIC_WEB_BASE_URL: str = "http://localhost:3000"
-    PUBLIC_STREAMLIT_BASE_URL: str = ""
-    CORS_ALLOW_ORIGINS: list[str] = ["http://localhost:3000"]
+    # pydantic-settings 가 list[str] 필드를 JSON 으로 파싱하려 하므로 문자열로 받고 property 로 split.
+    CORS_ALLOW_ORIGINS: str = "http://localhost:3000"
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="ignore"
     )
 
-    @field_validator("CORS_ALLOW_ORIGINS", mode="before")
-    @classmethod
-    def _split_origins(cls, value: object) -> object:
-        if isinstance(value, str):
-            return [item.strip() for item in value.split(",") if item.strip()]
-        return value
+    @property
+    def cors_allow_origins(self) -> list[str]:
+        return [item.strip() for item in self.CORS_ALLOW_ORIGINS.split(",") if item.strip()]
 
     @property
     def public_web_base_url(self) -> str:
-        if self.PUBLIC_WEB_BASE_URL:
-            return self.PUBLIC_WEB_BASE_URL
-        return self.PUBLIC_STREAMLIT_BASE_URL
+        return self.PUBLIC_WEB_BASE_URL

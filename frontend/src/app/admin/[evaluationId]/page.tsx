@@ -1,4 +1,6 @@
-import { Placeholder } from "@/components/wizard/placeholder";
+// 관리 콘솔 server entry. evaluationId 를 await 한 뒤 client 콘솔에 prop 으로 넘긴다.
+
+import { AdminConsole } from "./admin-console";
 
 interface PageProps {
   params: Promise<{ evaluationId: string }>;
@@ -6,10 +8,5 @@ interface PageProps {
 
 export default async function AdminEvaluationPage({ params }: PageProps) {
   const { evaluationId } = await params;
-  return (
-    <Placeholder
-      title={`방 관리 콘솔 — ${evaluationId}`}
-      description="Phase 8에서 admin password 게이트와 상태/질문/리포트 탭을 구현합니다."
-    />
-  );
+  return <AdminConsole evaluationId={evaluationId} />;
 }

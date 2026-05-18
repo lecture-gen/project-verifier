@@ -1,10 +1,165 @@
-import { Placeholder } from "@/components/wizard/placeholder";
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Plus } from "lucide-react";
+
+import { AdminPasswordDialog } from "@/components/admin/admin-password-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEvaluationList } from "@/lib/api/queries";
+import type {
+  EvaluationStatus,
+  ProjectEvaluationSummaryRead,
+} from "@/lib/api/endpoints";
+import { readAdminPassword } from "@/lib/session/admin";
+
+const STATUS_LABEL: Record<EvaluationStatus, string> = {
+  created: "방 생성",
+  uploaded: "자료 업로드",
+  analyzed: "분석 완료",
+  questions_generated: "질문 생성",
+  interviewing: "인터뷰 중",
+  reported: "리포트 완료",
+};
 
 export default function AdminListPage() {
+  const router = useRouter();
+  const listQuery = useEvaluationList();
+
+  const [pending, setPending] = useState<ProjectEvaluationSummaryRead | null>(
+    null,
+  );
+
+  function tryOpen(evaluation: ProjectEvaluationSummaryRead) {
+    const cached = readAdminPassword(evaluation.id);
+    if (cached) {
+      router.push(`/admin/${evaluation.id}`);
+      return;
+    }
+    setPending(evaluation);
+  }
+
+  function onVerified() {
+    const target = pending;
+    setPending(null);
+    if (target) router.push(`/admin/${target.id}`);
+  }
+
   return (
-    <Placeholder
-      title="방 목록"
-      description="Phase 8에서 평가 방 카드 그리드와 클릭 시 방 관리 콘솔로 이동하는 흐름을 구현합니다."
-    />
+    <div className="mx-auto w-full max-w-6xl px-6 py-12">
+      <header className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
+            평가 방 목록
+          </p>
+          <h1 className="mt-2 font-serif text-4xl leading-tight tracking-tight">
+            관리 콘솔
+          </h1>
+          <p className="mt-3 max-w-xl text-sm text-muted-foreground">
+            카드 클릭 시 평가자 비밀번호 확인 후 해당 방의 자료·질문·리포트를 볼 수
+            있는 콘솔로 이동합니다.
+          </p>
+        </div>
+        <Button asChild>
+          <Link href="/create/step-1-info">
+            <Plus />새 방 만들기
+          </Link>
+        </Button>
+      </header>
+
+      {listQuery.isPending && (
+        <p className="rounded-md border border-dashed border-border/60 px-4 py-10 text-center text-sm text-muted-foreground">
+          방 목록을 불러오는 중…
+        </p>
+      )}
+
+      {listQuery.isError && (
+        <div className="rounded-md border border-destructive/60 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          방 목록을 불러올 수 없습니다: {listQuery.error.message}
+        </div>
+      )}
+
+      {listQuery.data && listQuery.data.length === 0 && (
+        <p className="rounded-md border border-dashed border-border/60 px-4 py-10 text-center text-sm text-muted-foreground">
+          아직 만든 방이 없습니다. 우상단의 “새 방 만들기” 로 시작하세요.
+        </p>
+      )}
+
+      {listQuery.data && listQuery.data.length > 0 && (
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {listQuery.data.map((evaluation) => (
+            <li key={evaluation.id}>
+              <EvaluationCard
+                evaluation={evaluation}
+                onClick={() => tryOpen(evaluation)}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <AdminPasswordDialog
+        evaluationId={pending?.id ?? ""}
+        evaluationLabel={pending?.room_name || pending?.project_name}
+        open={pending !== null}
+        onOpenChange={(next) => {
+          if (!next) setPending(null);
+        }}
+        onVerified={onVerified}
+      />
+    </div>
+  );
+}
+
+function EvaluationCard({
+  evaluation,
+  onClick,
+}: {
+  evaluation: ProjectEvaluationSummaryRead;
+  onClick: () => void;
+}) {
+  const created = new Date(evaluation.created_at);
+  const updated = new Date(evaluation.updated_at);
+  const statusLabel = STATUS_LABEL[evaluation.status] ?? evaluation.status;
+
+  return (
+    <Card
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+      className="cursor-pointer transition-colors hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <CardHeader className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <Badge variant="secondary">{statusLabel}</Badge>
+          <Badge variant="outline">질문 {evaluation.question_count}</Badge>
+        </div>
+        <CardTitle className="text-lg leading-snug">
+          {evaluation.room_name || evaluation.project_name || "(이름 없음)"}
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          {evaluation.project_name}
+          {evaluation.candidate_name ? ` · ${evaluation.candidate_name}` : ""}
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-1 text-xs text-muted-foreground">
+        <p>
+          <span className="font-mono">{evaluation.id}</span>
+        </p>
+        <p>
+          생성 {created.toLocaleString("ko-KR")} · 갱신{" "}
+          {updated.toLocaleString("ko-KR")}
+        </p>
+      </CardContent>
+    </Card>
   );
 }

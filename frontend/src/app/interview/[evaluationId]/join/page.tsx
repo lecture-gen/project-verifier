@@ -1,4 +1,7 @@
-import { Placeholder } from "@/components/wizard/placeholder";
+// 지원자 입장 폼은 client 인터랙션이지만, evaluationId 는 server 에서 await params 로 받아
+// 안전하게 client 컴포넌트에 prop 으로 넘긴다.
+
+import { JoinForm } from "./join-form";
 
 interface PageProps {
   params: Promise<{ evaluationId: string }>;
@@ -7,9 +10,8 @@ interface PageProps {
 export default async function InterviewJoinPage({ params }: PageProps) {
   const { evaluationId } = await params;
   return (
-    <Placeholder
-      title={`인터뷰 입장 — ${evaluationId}`}
-      description="Phase 6에서 지원자 이름과 방 비밀번호 입력 후 세션 생성 흐름을 구현합니다."
-    />
+    <div className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-3xl items-center px-6 py-16">
+      <JoinForm evaluationId={evaluationId} />
+    </div>
   );
 }
