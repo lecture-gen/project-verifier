@@ -117,8 +117,6 @@ export function Stage1Info() {
           입장 비밀번호로 접속하며, 두 값은 마지막 단계에서 함께 공유됩니다.
         </p>
       }
-      previousLabel="홈"
-      nextLabel="자료 업로드"
       actions={
         <Button
           type="submit"
@@ -251,8 +249,6 @@ export function Stage2Upload() {
           </p>
         </>
       }
-      previousLabel="방 정보"
-      nextLabel="질문 정책"
       actions={
         <Button
           type="button"
@@ -354,8 +350,6 @@ export function Stage3Policy() {
           </p>
         </>
       }
-      previousLabel="자료 분석"
-      nextLabel="질문 검토"
       actions={
         <>
           <Button type="button" variant="ghost" onClick={() => goToStep(2)}>
@@ -504,8 +498,6 @@ export function Stage4Questions() {
           </p>
         </>
       }
-      previousLabel="질문 정책"
-      nextLabel="학생 공유"
       actions={
         <>
           <Button type="button" variant="ghost" onClick={() => goToStep(3)}>
@@ -739,8 +731,6 @@ export function Stage5Summary() {
           </p>
         </>
       }
-      previousLabel="질문 검토"
-      nextLabel="관리 콘솔"
       actions={
         <>
           <Button type="button" variant="ghost" onClick={() => goToStep(4)}>

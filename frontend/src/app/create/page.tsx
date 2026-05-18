@@ -47,8 +47,8 @@ export default function CreateWizardPage() {
   }, [currentStep]);
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-6 py-12">
-      <div className="mb-8 flex items-center justify-between">
+    <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 md:py-8">
+      <div className="mb-4 flex items-center justify-between md:mb-6">
         <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">
           새 평가 방 만들기
         </p>
@@ -59,7 +59,10 @@ export default function CreateWizardPage() {
         />
       </div>
 
-      <div ref={containerRef} className="space-y-40 lg:space-y-56">
+      <div
+        ref={containerRef}
+        className="snap-y snap-mandatory space-y-16 md:space-y-24"
+      >
         {(Object.keys(STAGES) as unknown as string[])
           .map((key) => Number(key) as WizardStep)
           .map((step) => {
@@ -71,9 +74,10 @@ export default function CreateWizardPage() {
                 key={step}
                 data-stage={step}
                 aria-hidden={!visible}
-                // scroll-mt 로 sticky/상단 여백 보정. 스크롤 목표 지점이 정확히 stage 상단으로 가도록.
+                // 한 stage 는 사용자 viewport 높이에 맞춰 한 화면을 차지한다.
+                // scroll-mt 로 sticky/상단 여백 보정, scroll-snap 으로 step 단위 정렬.
                 className={cn(
-                  "scroll-mt-24 transition-all duration-500 ease-out",
+                  "flex min-h-[100dvh] snap-start scroll-mt-6 flex-col transition-all duration-500 ease-out",
                   visible
                     ? "translate-y-0 opacity-100"
                     : "pointer-events-none translate-y-8 opacity-0",
