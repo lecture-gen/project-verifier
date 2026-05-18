@@ -2,7 +2,7 @@ services:
   api:
     container_name: dialearn-api
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
     env_file:
@@ -11,7 +11,8 @@ services:
       QDRANT_URL: http://qdrant:6333
       APP_SQLITE_PATH: /app/data/app.db
       APP_ARTIFACT_DIR: /app/data/artifacts
-      PUBLIC_STREAMLIT_BASE_URL: https://dialearn.presso.ac
+      PUBLIC_WEB_BASE_URL: ${PUBLIC_WEB_BASE_URL:-https://dialearn.presso.ac}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-https://dialearn.presso.ac,http://localhost:3000}
     depends_on:
       qdrant:
         condition: service_healthy
@@ -30,33 +31,28 @@ services:
     networks:
       - proxy
 
-  streamlit:
-    container_name: dialearn-streamlit
+  web:
+    container_name: dialearn-web
     build:
-      context: .
+      context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # next build 가 client bundle 에 인라인하는 공개 API base.
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://dialearn.presso.ac}
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
-      API_BASE_URL: https://dialearn.presso.ac
-      PUBLIC_APP_BASE_URL: https://dialearn.presso.ac
+      # 서버 컴포넌트 / Route Handler 가 docker network 안에서 api 컨테이너로 직접 호출.
+      INTERNAL_API_BASE_URL: http://api:8000
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://dialearn.presso.ac}
+      NODE_ENV: production
     depends_on:
       api:
         condition: service_healthy
-    command:
-      [
-        "streamlit",
-        "run",
-        "apps/streamlit/Home.py",
-        "--server.address=0.0.0.0",
-        "--server.port=8501",
-      ]
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health')\"",
+          "wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1 || exit 1",
         ]
       interval: 30s
       timeout: 5s
@@ -81,6 +77,8 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    ports:
+      - "6333:6333"
     networks:
       - proxy
 

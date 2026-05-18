@@ -55,26 +55,28 @@ make qdrant-up
 
 Qdrant 없이도 동작합니다. RAG 없이 rule-based 질문 생성으로 폴백합니다.
 
-### 5. FastAPI 서버 시작
+### 5. FastAPI 백엔드 시작
 
 ```bash
-make api
+make backend-dev
 # 또는
-uv run uvicorn services.api.app.main:app --reload
+cd backend && uv run uvicorn app.main:app --reload
 ```
 
 서버가 `http://localhost:8000`에서 시작됩니다.
 API 문서: `http://localhost:8000/docs`
 
-### 6. Streamlit UI 시작
+### 6. Next.js 프런트엔드 시작
 
 ```bash
-make streamlit
+make frontend-dev
 # 또는
-uv run streamlit run apps/streamlit/Home.py
+cd frontend && pnpm dev
 ```
 
-브라우저에서 `http://localhost:8501`로 접속합니다.
+브라우저에서 `http://localhost:3000`으로 접속합니다.
+
+백엔드 스키마가 바뀌면 `make frontend-types` 로 `frontend/src/lib/api/types.gen.ts` 를 재생성하세요.
 
 ## 사용 흐름
 
@@ -110,34 +112,42 @@ make reset-demo-data
 
 ```
 v2/
-├── apps/
-│   └── streamlit/          # Streamlit UI (Home.py, api_client.py)
-├── services/
-│   └── api/
-│       ├── app/
-│       │   ├── project_evaluations/
-│       │   │   ├── analysis/       # context 추출, LLM 클라이언트
-│       │   │   ├── domain/         # Pydantic 모델, DB Row 모델
-│       │   │   ├── ingestion/      # zip 처리, 텍스트 추출
-│       │   │   ├── interview/      # 질문 생성, 답변 평가
-│       │   │   ├── persistence/    # SQLAlchemy repository
-│       │   │   ├── rag/            # Qdrant embedder, retriever
-│       │   │   ├── realtime/       # OpenAI Realtime API 프록시
-│       │   │   └── reports/        # 최종 리포트 생성
-│       │   ├── main.py
-│       │   └── settings.py
-│       └── tests/
-├── data/
-│   ├── app.db              # SQLite3 DB
-│   └── artifacts/          # 업로드 zip 및 추출 파일
+├── backend/                       # FastAPI 백엔드
+│   ├── app/
+│   │   ├── core/                  # 공통 보안/rate limit helper
+│   │   ├── project_evaluations/
+│   │   │   ├── analysis/          # context 추출, LLM 클라이언트
+│   │   │   ├── domain/            # Pydantic 모델 (파일별 분할)
+│   │   │   ├── ingestion/         # zip 처리, 텍스트 추출
+│   │   │   ├── interview/         # 질문 생성, 답변 평가
+│   │   │   ├── persistence/       # SQLAlchemy repository
+│   │   │   ├── prompts/           # LLM 프롬프트
+│   │   │   ├── rag/               # Qdrant embedder, retriever
+│   │   │   ├── reports/           # 최종 리포트 생성
+│   │   │   ├── router.py          # /api/project-evaluations 엔드포인트
+│   │   │   └── service.py
+│   │   ├── database.py
+│   │   ├── main.py
+│   │   └── settings.py
+│   ├── data/
+│   │   ├── app.db                 # SQLite3 DB
+│   │   └── artifacts/             # 업로드 zip 및 추출 파일
+│   ├── tests/
+│   ├── Dockerfile
+│   ├── pyproject.toml
+│   └── uv.lock
+├── frontend/                      # Next.js 16 (App Router) 프런트엔드
+│   ├── src/
+│   │   ├── app/                   # 라우트 (home, create 마법사, admin, interview)
+│   │   ├── components/            # ui, wizard, audio, report, admin
+│   │   └── lib/                   # api client, wizard state, audio (STT/TTS), session
+│   ├── Dockerfile
+│   └── package.json
 ├── docs/
-│   ├── project-evaluation-scope.md
-│   └── tech-stack.md
 ├── scripts/
-│   └── reset-demo-data.sh
+├── docker-compose.yml             # api + web + qdrant
 ├── .env.example
-├── Makefile
-└── pyproject.toml
+└── Makefile
 ```
 
 ## 최종 판정 기준
