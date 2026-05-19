@@ -5,7 +5,10 @@
 import { redirect } from "next/navigation";
 
 import { ApiError } from "@/lib/api/client";
-import { getInterviewState } from "@/lib/api/endpoints";
+import {
+  getInterviewState,
+  listQuestionsAsParticipant,
+} from "@/lib/api/endpoints";
 import { readInterviewSessionToken } from "@/lib/session/interview-server";
 
 import { InterviewRunner } from "./interview-runner";
@@ -22,12 +25,10 @@ export default async function InterviewSessionPage({ params }: PageProps) {
     redirect(`/interview/${evaluationId}/join`);
   }
 
-  const initialState = await getInterviewState(
-    evaluationId,
-    sessionId,
-    sessionToken,
-    { internal: true },
-  ).catch((error: unknown) => {
+  const [initialState, initialQuestions] = await Promise.all([
+    getInterviewState(evaluationId, sessionId, sessionToken, { internal: true }),
+    listQuestionsAsParticipant(evaluationId, sessionId, sessionToken),
+  ]).catch((error: unknown) => {
     // 토큰이 만료/위조됐거나 백엔드가 인증을 거부하면 join 으로 돌려보낸다.
     // 그 외 오류는 Next.js 의 가까운 error boundary 로 흘려보낸다.
     if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
@@ -42,6 +43,7 @@ export default async function InterviewSessionPage({ params }: PageProps) {
       sessionId={sessionId}
       sessionToken={sessionToken}
       initialState={initialState}
+      initialQuestions={initialQuestions}
     />
   );
 }

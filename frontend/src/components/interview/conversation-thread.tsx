@@ -53,7 +53,7 @@ export function ConversationThread({
       ref={scrollerRef}
       aria-live="polite"
       className={cn(
-        "flex max-h-[60vh] flex-col gap-4 overflow-y-auto rounded-2xl border border-border/60 bg-card/60 px-4 py-5 sm:px-6",
+        "flex flex-col gap-4 overflow-y-auto rounded-2xl border border-border/60 bg-card/60 px-4 py-5 sm:px-6",
         className,
       )}
     >
