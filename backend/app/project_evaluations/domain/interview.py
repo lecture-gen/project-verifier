@@ -62,6 +62,9 @@ class InterviewTurnFlowRequest(BaseModel):
     follow_up_question: str = Field(default="", max_length=2000)
     follow_up_reason: str = Field(default="", max_length=4000)
     current_question_id: str | None = None
+    # 누적 대화. 프론트가 매 follow-up 요청에 그대로 전달해 서버 stateless 유지.
+    # ANSWER 모드(1차 답변)에서는 None.
+    conversation_history: QuestionExchange | None = None
 
 
 class InterviewTurnFlowResponse(BaseModel):
@@ -74,3 +77,5 @@ class InterviewTurnFlowResponse(BaseModel):
     turn: InterviewTurnRead | None = None
     next_question: InterviewQuestionRead | None = None
     report: EvaluationReportRead | None = None
+    # NEED_FOLLOW_UP 상태에서 서버가 갱신해 돌려주는 누적 대화. 프론트는 이를 그대로 다음 요청에 동봉.
+    conversation_history: QuestionExchange | None = None

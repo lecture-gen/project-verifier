@@ -829,6 +829,8 @@ export interface components {
             follow_up_reason: string;
             /** Current Question Id */
             current_question_id?: string | null;
+            /** 누적 대화 (follow_up 모드에서 프론트가 매 요청에 그대로 전달) */
+            conversation_history?: components["schemas"]["QuestionExchange"] | null;
         };
         /** InterviewTurnFlowResponse */
         InterviewTurnFlowResponse: {
@@ -851,6 +853,8 @@ export interface components {
             turn?: components["schemas"]["InterviewTurnRead"] | null;
             next_question?: components["schemas"]["InterviewQuestionRead"] | null;
             report?: components["schemas"]["EvaluationReportRead"] | null;
+            /** NEED_FOLLOW_UP 시 서버가 갱신해 돌려주는 누적 대화. 프론트는 그대로 다음 요청에 동봉. */
+            conversation_history?: components["schemas"]["QuestionExchange"] | null;
         };
         /**
          * InterviewTurnFlowStatus

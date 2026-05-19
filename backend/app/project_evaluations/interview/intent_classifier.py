@@ -4,6 +4,7 @@ import json
 import logging
 import re
 from enum import StrEnum
+from typing import Literal
 
 from app.project_evaluations.analysis.llm_client import LlmClient
 
@@ -14,6 +15,28 @@ class StudentIntent(StrEnum):
     ANSWER = "answer"
     SKIP = "skip"
     END_EXAM = "end_exam"
+
+
+IntentMode = Literal["answer", "follow_up"]
+
+
+_ANSWER_MODE_GUIDE = (
+    "- answer: 현재 질문에 답변하거나 추가 설명을 하는 경우. "
+    "여기에는 '모른다', '잘 모르겠다', '기억이 안 난다', '생각 안 난다' 같은 "
+    "지식 부족/회상 실패 답변도 포함됩니다. 이런 표현은 의미 있는 답변이므로 반드시 answer입니다.\n"
+    "- skip: 현재 질문을 명시적으로 건너뛰자고 하거나 \"다음 문제로 넘어가자\" 같이 말한 경우\n"
+    "- end_exam: 검증 전체를 끝내자고 하는 경우"
+)
+
+
+_FOLLOW_UP_MODE_GUIDE = (
+    "- answer: 학생이 꼬리질문에 대해 보충 답변을 시도하는 경우. 부분적 답변이라도 의미 있는 정보가 담겨 있으면 answer 입니다.\n"
+    "- skip: 학생이 이 꼬리질문에 더 답할 게 없다고 명시적으로 표현했거나 다음 문제로 넘어가고 싶다고 한 경우. "
+    "예시 표현: '잘 모르겠어요', '기억이 안 나요', '생각이 안 나요', '더 할 말 없어요', '답을 못 하겠어요', "
+    "'다음 문제로 넘어갈게요', '넘어가자', '스킵', '패스'. "
+    "꼬리질문 모드에서는 이런 give-up 표현을 모두 skip 으로 분류합니다 (이번 문제의 꼬리질문 라운드를 종료한다는 신호).\n"
+    "- end_exam: 검증 전체를 끝내자고 하는 경우"
+)
 
 
 _INTENT_KEYWORDS: tuple[tuple[str, StudentIntent], ...] = (
@@ -56,23 +79,30 @@ def _parse_intent(response: str) -> StudentIntent | None:
     return None
 
 
-def classify_student_intent(text: str, llm: LlmClient) -> StudentIntent:
+def classify_student_intent(
+    text: str,
+    llm: LlmClient,
+    mode: IntentMode = "answer",
+) -> StudentIntent:
     if not llm.enabled():
         raise RuntimeError("학생 답변 의도 판별에 사용할 LLM client가 비활성화되어 있습니다.")
+
+    if mode == "follow_up":
+        mode_context = "지금은 본 질문의 꼬리질문 라운드 도중입니다. 학생은 꼬리질문에 대해 다음과 같이 말했습니다:"
+        mode_guide = _FOLLOW_UP_MODE_GUIDE
+    else:
+        mode_context = "프로젝트 수행 진위 검증 검증 중 학생이 다음과 같이 말했습니다:"
+        mode_guide = _ANSWER_MODE_GUIDE
 
     response = llm.chat(
         [
             {
                 "role": "user",
                 "content": (
-                    "프로젝트 수행 진위 검증 검증 중 학생이 다음과 같이 말했습니다:\n"
+                    f"{mode_context}\n"
                     f'"{text}"\n\n'
                     "학생 의도를 아래 셋 중 하나로만 분류하세요.\n"
-                    "- answer: 현재 질문에 답변하거나 추가 설명을 하는 경우. "
-                    "여기에는 '모른다', '잘 모르겠다', '기억이 안 난다', '생각 안 난다' 같은 "
-                    "지식 부족/회상 실패 답변도 포함됩니다. 이런 표현은 의미 있는 답변이므로 반드시 answer입니다.\n"
-                    "- skip: 현재 질문을 명시적으로 건너뛰자고 하거나 \"다음 문제로 넘어가자\" 같이 말한 경우\n"
-                    "- end_exam: 검증 전체를 끝내자고 하는 경우\n\n"
+                    f"{mode_guide}\n\n"
                     "출력 형식: 다음 JSON 한 줄만 출력하세요. 다른 텍스트 금지.\n"
                     '{"intent":"answer"} 또는 {"intent":"skip"} 또는 {"intent":"end_exam"}'
                 ),
@@ -85,7 +115,8 @@ def classify_student_intent(text: str, llm: LlmClient) -> StudentIntent:
     if parsed is not None:
         return parsed
     logger.warning(
-        "intent parse failed: response=%r — falling back to ANSWER (answer text preserved)",
+        "intent parse failed: mode=%s response=%r — falling back to ANSWER (answer text preserved)",
+        mode,
         response,
     )
     return StudentIntent.ANSWER

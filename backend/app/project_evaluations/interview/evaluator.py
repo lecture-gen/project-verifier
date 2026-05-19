@@ -127,18 +127,42 @@ def judge_answer(
     )
     reason = result.reason.strip()
     request_to_generator = result.request_to_generator.strip()
-    if result.needs_follow_up and not request_to_generator:
-        raise RuntimeError(
-            "평가관이 꼬리질문 필요 판단을 했지만 생성기 요청이 비어 있습니다."
-        )
-    if not result.needs_follow_up and request_to_generator:
-        raise RuntimeError(
-            "평가관이 꼬리질문 불필요 판단을 했지만 생성기 요청을 함께 반환했습니다."
-        )
+    target_index = result.target_rubric_index
+    target_description = result.target_rubric_description.strip()
+    rubric_size = len(scoring_rubric)
+    if result.needs_follow_up:
+        if not request_to_generator:
+            raise RuntimeError(
+                "평가관이 꼬리질문 필요 판단을 했지만 생성기 요청이 비어 있습니다."
+            )
+        if target_index is None:
+            raise RuntimeError(
+                "평가관이 꼬리질문 필요 판단을 했지만 target_rubric_index가 비어 있습니다."
+            )
+        if target_index < 0 or target_index >= rubric_size:
+            raise RuntimeError(
+                "평가관이 반환한 target_rubric_index가 채점 기준표 범위를 벗어났습니다: "
+                f"index={target_index}, rubric_size={rubric_size}"
+            )
+        if not target_description:
+            raise RuntimeError(
+                "평가관이 target_rubric_index만 지정하고 target_rubric_description을 비워 두었습니다."
+            )
+    else:
+        if request_to_generator:
+            raise RuntimeError(
+                "평가관이 꼬리질문 불필요 판단을 했지만 생성기 요청을 함께 반환했습니다."
+            )
+        if target_index is not None or target_description:
+            raise RuntimeError(
+                "평가관이 꼬리질문 불필요 판단을 했지만 target_rubric_* 값이 채워져 있습니다."
+            )
     return {
         "needs_follow_up": result.needs_follow_up,
         "reason": reason,
         "request_to_generator": request_to_generator,
+        "target_rubric_index": target_index,
+        "target_rubric_description": target_description,
     }
 
 
@@ -147,6 +171,8 @@ def generate_follow_up_question(
     answer_text: str,
     judge_reason: str,
     request_to_generator: str,
+    target_rubric_index: int,
+    target_rubric_description: str,
     llm: LlmClient | None = None,
     conversation_history: str = "",
 ) -> str:
@@ -155,6 +181,13 @@ def generate_follow_up_question(
             "꼬리질문 생성에 필요한 LLM client가 비활성화되었습니다. OPENAI_API_KEY와 평가 모델 설정을 확인하세요."
         )
     scoring_rubric = _scoring_rubric_payload(question)
+    if target_rubric_index < 0 or target_rubric_index >= len(scoring_rubric):
+        raise RuntimeError(
+            "꼬리질문 생성 요청의 target_rubric_index가 채점 기준표 범위를 벗어났습니다: "
+            f"index={target_rubric_index}, rubric_size={len(scoring_rubric)}"
+        )
+    if not target_rubric_description.strip():
+        raise RuntimeError("꼬리질문 생성 요청의 target_rubric_description이 비어 있습니다.")
     result: FollowUpQuestionSchema = llm.parse(
         build_follow_up_prompt(
             question=question.question,
@@ -165,6 +198,8 @@ def generate_follow_up_question(
             judge_reason=judge_reason,
             request_to_generator=request_to_generator,
             source_snippets=_source_snippets(question),
+            target_rubric_index=target_rubric_index,
+            target_rubric_description=target_rubric_description,
             conversation_history=conversation_history,
         ),
         FollowUpQuestionSchema,
@@ -243,11 +278,19 @@ def evaluate_answer(
         follow_up_count=follow_up_count,
     )
     if judge_result["needs_follow_up"]:
+        target_index = judge_result["target_rubric_index"]
+        target_description = str(judge_result["target_rubric_description"])
+        if target_index is None:
+            raise RuntimeError(
+                "judge_answer 결과 needs_follow_up=true 이지만 target_rubric_index가 None 입니다."
+            )
         follow_up_question = generate_follow_up_question(
             question,
             answer_text,
             judge_reason=str(judge_result["reason"]),
             request_to_generator=str(judge_result["request_to_generator"]),
+            target_rubric_index=int(target_index),
+            target_rubric_description=target_description,
             llm=llm,
             conversation_history=conversation_history,
         )

@@ -6,6 +6,10 @@ import { toast } from "sonner";
 
 import { MicButton } from "@/components/audio/mic-button";
 import { TtsButton } from "@/components/audio/tts-button";
+import {
+  ConversationThread,
+  type ConversationMessage,
+} from "@/components/interview/conversation-thread";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +26,7 @@ import { useInterviewState } from "@/lib/api/queries";
 import type {
   InterviewQuestionRead,
   InterviewTurnFlowResponse,
+  QuestionExchange,
   StudentInterviewStateRead,
 } from "@/lib/api/endpoints";
 import { clearInterviewSession } from "@/lib/session/interview";
@@ -36,7 +41,6 @@ interface InterviewRunnerProps {
 interface PendingFollowUp {
   question: string;
   reason: string;
-  draft_answer: string;
 }
 
 function describeError(error: unknown, fallback: string): string {
@@ -71,6 +75,7 @@ export function InterviewRunner({
 
   const [answer, setAnswer] = useState("");
   const [interim, setInterim] = useState("");
+  const [conversation, setConversation] = useState<QuestionExchange | null>(null);
   const [pendingFollowUp, setPendingFollowUp] = useState<PendingFollowUp | null>(
     null,
   );
@@ -89,7 +94,6 @@ export function InterviewRunner({
     [state.current_question_index, state.total_questions],
   );
 
-  // 세션이 이미 끝나 있으면 리포트로 바로 보낸다.
   useEffect(() => {
     if (state.is_completed) {
       router.replace(
@@ -98,25 +102,84 @@ export function InterviewRunner({
     }
   }, [state.is_completed, router, evaluationId, sessionId]);
 
+  // 현재 문제가 바뀌면 채팅창을 초기화한다.
+  useEffect(() => {
+    setConversation(null);
+    setPendingFollowUp(null);
+    setAnswer("");
+    setInterim("");
+  }, [question?.id]);
+
+  const messages = useMemo<ConversationMessage[]>(() => {
+    const list: ConversationMessage[] = [];
+    if (question) {
+      list.push({
+        key: `q-${question.id}`,
+        role: "assistant",
+        meta: "본 질문",
+        text: question.question,
+        subtext: question.intent ? `출제 의도 · ${question.intent}` : undefined,
+      });
+    }
+    if (conversation) {
+      if (conversation.student_answer) {
+        list.push({
+          key: `a-initial-${question?.id ?? ""}`,
+          role: "user",
+          meta: "1차 답변",
+          text: conversation.student_answer,
+        });
+      }
+      conversation.follow_ups?.forEach((exchange, index) => {
+        const roundLabel = `라운드 ${index + 1}`;
+        list.push({
+          key: `fq-${question?.id ?? ""}-${index}`,
+          role: "assistant",
+          meta: `꼬리질문 · ${roundLabel}`,
+          text: exchange.question,
+          subtext: exchange.reason || undefined,
+          pending: !exchange.answer,
+        });
+        if (exchange.answer) {
+          list.push({
+            key: `fa-${question?.id ?? ""}-${index}`,
+            role: "user",
+            meta: `답변 · ${roundLabel}`,
+            text: exchange.answer,
+          });
+        }
+      });
+    }
+    return list;
+  }, [question, conversation]);
+
+  function applyResponseConversation(response: InterviewTurnFlowResponse) {
+    if (response.conversation_history) {
+      setConversation(response.conversation_history);
+    }
+  }
+
   function handleResponse(response: InterviewTurnFlowResponse) {
     switch (response.status) {
       case "need_follow_up": {
-        toast.message(
-          response.follow_up_reason
-            ? `꼬리질문: ${response.follow_up_reason}`
-            : "꼬리질문이 추가됐어요.",
-        );
-        setPendingFollowUp({
+        applyResponseConversation(response);
+        const followUp: PendingFollowUp = {
           question: response.follow_up_question ?? "",
           reason: response.follow_up_reason ?? "",
-          draft_answer: response.draft_answer ?? "",
-        });
+        };
+        setPendingFollowUp(followUp);
         setAnswer("");
         setInterim("");
+        toast.message(
+          followUp.reason
+            ? `꼬리질문: ${followUp.reason}`
+            : "꼬리질문이 추가됐어요.",
+        );
         return;
       }
       case "turn_submitted": {
         toast.success(response.message || "답변을 저장했습니다.");
+        setConversation(null);
         setPendingFollowUp(null);
         setAnswer("");
         setInterim("");
@@ -127,6 +190,7 @@ export function InterviewRunner({
         toast.success(
           response.message || "마지막 질문이에요. 종료해서 리포트를 받으세요.",
         );
+        setConversation(null);
         setPendingFollowUp(null);
         setAnswer("");
         setInterim("");
@@ -147,40 +211,54 @@ export function InterviewRunner({
     }
   }
 
-  async function onSubmitAnswer() {
+  async function submitAnswerText(textOverride?: string) {
     if (!question) {
       toast.error("진행 가능한 질문이 없습니다. 상태를 새로고침해 주세요.");
       return;
     }
-    if (!answer.trim() && !pendingFollowUp) {
+    const trimmed = (textOverride ?? answer).trim();
+    if (!trimmed && !pendingFollowUp) {
       toast.error("답변을 입력해 주세요.");
       return;
     }
 
     try {
       const response = await submitMutation.mutateAsync(
-        pendingFollowUp
+        pendingFollowUp && conversation
           ? {
               mode: "follow_up",
-              answer_text: answer,
-              draft_answer: pendingFollowUp.draft_answer,
+              answer_text: trimmed,
+              draft_answer: conversation.student_answer ?? "",
               follow_up_question: pendingFollowUp.question,
               follow_up_reason: pendingFollowUp.reason,
               current_question_id: question.id,
+              conversation_history: conversation,
             }
           : {
               mode: "answer",
-              answer_text: answer,
+              answer_text: trimmed,
               draft_answer: "",
               follow_up_question: "",
               follow_up_reason: "",
               current_question_id: question.id,
+              conversation_history: null,
             },
       );
       handleResponse(response);
     } catch (error) {
       toast.error(describeError(error, "답변 제출에 실패했습니다."));
     }
+  }
+
+  async function onSubmitAnswer() {
+    await submitAnswerText();
+  }
+
+  async function onSkipFollowUp() {
+    if (!pendingFollowUp) return;
+    const giveUpText =
+      answer.trim() || "다음 문제로 넘어갈게요";
+    await submitAnswerText(giveUpText);
   }
 
   async function onComplete() {
@@ -212,7 +290,7 @@ export function InterviewRunner({
   const submitting =
     submitMutation.isPending || completeMutation.isPending || abortMutation.isPending;
 
-  // 현재 사용자가 들어야 하는 텍스트: 꼬리질문이 있으면 꼬리질문, 아니면 본 질문.
+  // TTS 대상 텍스트는 진행 중 라운드의 마지막 assistant 메시지(꼬리질문 또는 본 질문).
   const speakingText = pendingFollowUp?.question || question?.question || "";
 
   const handleFinalTranscript = (text: string) => {
@@ -238,8 +316,8 @@ export function InterviewRunner({
         <div>
           <h1 className="font-serif text-3xl leading-tight">검증 진행</h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            한 질문에 답하면 시스템이 검증을 위한 꼬리질문을 던질 수 있어요. 마지막
-            질문까지 마치거나 “종료”를 누르면 리포트가 생성됩니다.
+            본 질문에 답하면 시스템이 부족한 부분을 보충받기 위해 꼬리질문을 던질 수 있어요.
+            한 문제 안에서 여러 차례 꼬리질문이 누적될 수 있습니다.
           </p>
         </div>
         <Separator />
@@ -287,14 +365,9 @@ export function InterviewRunner({
                   <TtsButton text={speakingText} autoplay={ttsAutoplay} />
                 </div>
               </div>
-              <CardTitle className="text-xl leading-snug">
-                {question.question}
+              <CardTitle className="text-base text-muted-foreground">
+                현재 문제 — 진행 라운드 {conversation?.follow_ups?.length ?? 0}회
               </CardTitle>
-              {question.intent && (
-                <p className="text-sm text-muted-foreground">
-                  출제 의도 · {question.intent}
-                </p>
-              )}
             </CardHeader>
           </Card>
         ) : (
@@ -305,33 +378,16 @@ export function InterviewRunner({
           </Card>
         )}
 
-        {pendingFollowUp && (
-          <Card className="border-amber-400/60 bg-amber-50/40 dark:bg-amber-950/20">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">꼬리질문</CardTitle>
-              {pendingFollowUp.reason && (
-                <p className="text-sm text-muted-foreground">
-                  {pendingFollowUp.reason}
-                </p>
-              )}
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <p className="font-medium">{pendingFollowUp.question}</p>
-              {pendingFollowUp.draft_answer && (
-                <p className="rounded border border-border/60 bg-background/70 px-3 py-2 text-xs text-muted-foreground">
-                  방금 답변:{" "}
-                  <span className="text-foreground/80">
-                    {pendingFollowUp.draft_answer}
-                  </span>
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        )}
+        <ConversationThread
+          messages={messages}
+          emptyState="질문을 받는 중입니다."
+        />
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 pb-3">
-            <CardTitle className="text-base">답변</CardTitle>
+            <CardTitle className="text-base">
+              {pendingFollowUp ? "꼬리질문 답변" : "답변"}
+            </CardTitle>
             <MicButton
               onFinalTranscript={handleFinalTranscript}
               onInterimTranscript={handleInterimTranscript}
@@ -340,10 +396,10 @@ export function InterviewRunner({
           </CardHeader>
           <CardContent className="space-y-3">
             <Textarea
-              rows={8}
+              rows={6}
               placeholder={
                 pendingFollowUp
-                  ? "꼬리질문에 대한 답변을 작성해 주세요."
+                  ? "꼬리질문에 대한 답변을 작성해 주세요. 더 답할 게 없다면 ‘다음 문제로 넘어갈게요’ 버튼을 눌러도 됩니다."
                   : "충분히 구체적으로 답해 주세요. 결정의 근거나 코드/문서 위치를 함께 적으면 좋습니다."
               }
               value={answer}
@@ -360,14 +416,10 @@ export function InterviewRunner({
                 <Button
                   type="button"
                   variant="ghost"
-                  onClick={() => {
-                    setPendingFollowUp(null);
-                    setAnswer("");
-                    setInterim("");
-                  }}
+                  onClick={onSkipFollowUp}
                   disabled={submitting}
                 >
-                  꼬리질문 무시하기
+                  다음 문제로 넘어갈게요
                 </Button>
               )}
               <Button type="button" onClick={onSubmitAnswer} disabled={submitting}>

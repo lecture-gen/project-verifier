@@ -80,6 +80,8 @@ export type InterviewTurnFlowRequest = Schemas["InterviewTurnFlowRequest"];
 export type InterviewTurnFlowResponse = Schemas["InterviewTurnFlowResponse"];
 export type InterviewTurnFlowStatus = Schemas["InterviewTurnFlowStatus"];
 export type InterviewTurnMode = Schemas["InterviewTurnMode"];
+export type QuestionExchange = Schemas["QuestionExchange"];
+export type FollowUpExchange = Schemas["FollowUpExchange"];
 
 export type StudentInterviewStateRead = Schemas["StudentInterviewStateRead"];
 export type InterviewTranscriptionRead = Schemas["InterviewTranscriptionRead"];

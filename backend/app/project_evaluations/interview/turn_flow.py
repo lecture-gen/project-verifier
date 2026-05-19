@@ -86,43 +86,37 @@ class InterviewTurnFlow:
                 session_token,
                 client_id,
             )
-        intent = classify_student_intent(payload.answer_text, self.service._eval_llm)
+
         if payload.mode == InterviewTurnMode.FOLLOW_UP:
-            if intent == StudentIntent.END_EXAM:
-                return self._complete_remaining(
-                    evaluation_id,
-                    session_id,
-                    payload.draft_answer.strip() or UNANSWERED_TEXT,
-                    session_token,
-                    client_id,
-                )
-            answer_text = (
-                payload.draft_answer.strip()
-                if intent == StudentIntent.SKIP
-                else self._combine_follow_up(payload)
-            )
-            return self._submit_current_turn(
+            return self._handle_follow_up_turn(
                 evaluation_id,
                 session_id,
-                answer_text or UNANSWERED_TEXT,
+                payload,
                 session_token,
                 client_id,
-                "꼬리질문 답변을 포함해 현재 질문 답변을 저장했습니다.",
-                allow_follow_up_required=True,
-                follow_up_question=payload.follow_up_question.strip() or None,
-                follow_up_reason=payload.follow_up_reason.strip(),
-                conversation_history=QuestionExchange(
-                    student_answer=payload.draft_answer.strip() or UNANSWERED_TEXT,
-                    follow_ups=[
-                        FollowUpExchange(
-                            question=payload.follow_up_question.strip(),
-                            reason=payload.follow_up_reason.strip(),
-                            answer=payload.answer_text.strip() or UNANSWERED_TEXT,
-                        )
-                    ],
-                ),
             )
 
+        return self._handle_initial_answer(
+            evaluation_id,
+            session_id,
+            session.current_question_index,
+            payload,
+            session_token,
+            client_id,
+        )
+
+    def _handle_initial_answer(
+        self,
+        evaluation_id: str,
+        session_id: str,
+        current_question_index: int,
+        payload: InterviewTurnFlowRequest,
+        session_token: str | None,
+        client_id: str,
+    ) -> InterviewTurnFlowResponse:
+        intent = classify_student_intent(
+            payload.answer_text, self.service._eval_llm, mode="answer"
+        )
         if intent == StudentIntent.SKIP:
             return self._submit_current_turn(
                 evaluation_id,
@@ -142,35 +136,209 @@ class InterviewTurnFlow:
                 client_id,
             )
 
-        draft_answer = self._combine_answer(payload.draft_answer, payload.answer_text)
+        student_answer = (
+            self._combine_answer(payload.draft_answer, payload.answer_text)
+            or UNANSWERED_TEXT
+        )
+        exchange = QuestionExchange(student_answer=student_answer)
         follow_up = self.service.preview_follow_up_question(
             evaluation_id,
             session_id,
-            session.current_question_index,
-            QuestionExchange(student_answer=draft_answer),
+            current_question_index,
+            exchange,
             session_token,
             client_id,
         )
         if follow_up:
+            updated_exchange = QuestionExchange(
+                student_answer=student_answer,
+                follow_ups=[
+                    FollowUpExchange(
+                        question=follow_up["question"],
+                        reason=follow_up["reason"],
+                        answer="",
+                    )
+                ],
+            )
             return InterviewTurnFlowResponse(
                 status=InterviewTurnFlowStatus.NEED_FOLLOW_UP,
                 message="답변 확인을 위해 꼬리질문이 필요합니다.",
-                draft_answer=draft_answer,
+                draft_answer=student_answer,
                 follow_up_question=follow_up["question"],
                 follow_up_reason=follow_up["reason"],
                 next_mode=InterviewTurnMode.FOLLOW_UP,
+                conversation_history=updated_exchange,
             )
         return self._submit_current_turn(
             evaluation_id,
             session_id,
-            draft_answer or UNANSWERED_TEXT,
+            student_answer,
             session_token,
             client_id,
             "현재 질문 답변을 저장했습니다.",
-            conversation_history=QuestionExchange(
-                student_answer=draft_answer or UNANSWERED_TEXT
-            ),
+            conversation_history=exchange,
         )
+
+    def _handle_follow_up_turn(
+        self,
+        evaluation_id: str,
+        session_id: str,
+        payload: InterviewTurnFlowRequest,
+        session_token: str | None,
+        client_id: str,
+    ) -> InterviewTurnFlowResponse:
+        accumulated = self._accumulated_exchange_from_payload(payload)
+        if not accumulated.follow_ups:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="follow_up 모드 요청에 누적 꼬리질문이 없습니다. 1차 답변부터 다시 진행하세요.",
+            )
+
+        intent = classify_student_intent(
+            payload.answer_text, self.service._eval_llm, mode="follow_up"
+        )
+        if intent == StudentIntent.END_EXAM:
+            return self._complete_remaining(
+                evaluation_id,
+                session_id,
+                accumulated.student_answer or UNANSWERED_TEXT,
+                session_token,
+                client_id,
+            )
+
+        # 학생 give-up: 마지막 꼬리질문에 명시적으로 더 못 답하거나 다음 문제로 넘어가자고 함.
+        if intent == StudentIntent.SKIP:
+            finalized_exchange = self._finalize_pending_follow_up(
+                accumulated, payload.answer_text, give_up=True
+            )
+            answer_text = self._compose_answer_text_from_exchange(finalized_exchange)
+            return self._submit_current_turn(
+                evaluation_id,
+                session_id,
+                answer_text,
+                session_token,
+                client_id,
+                "꼬리질문 라운드를 종료하고 현재 문제를 저장했습니다.",
+                allow_follow_up_required=True,
+                conversation_history=finalized_exchange,
+            )
+
+        updated_exchange = self._finalize_pending_follow_up(
+            accumulated, payload.answer_text, give_up=False
+        )
+
+        session = self.service.ensure_session(
+            evaluation_id, session_id, session_token, client_id
+        )
+        follow_up = self.service.preview_follow_up_question(
+            evaluation_id,
+            session_id,
+            session.current_question_index,
+            updated_exchange,
+            session_token,
+            client_id,
+        )
+        if follow_up:
+            new_exchange = QuestionExchange(
+                student_answer=updated_exchange.student_answer,
+                follow_ups=[
+                    *updated_exchange.follow_ups,
+                    FollowUpExchange(
+                        question=follow_up["question"],
+                        reason=follow_up["reason"],
+                        answer="",
+                    ),
+                ],
+            )
+            return InterviewTurnFlowResponse(
+                status=InterviewTurnFlowStatus.NEED_FOLLOW_UP,
+                message="추가 꼬리질문이 필요합니다.",
+                draft_answer=updated_exchange.student_answer,
+                follow_up_question=follow_up["question"],
+                follow_up_reason=follow_up["reason"],
+                next_mode=InterviewTurnMode.FOLLOW_UP,
+                conversation_history=new_exchange,
+            )
+
+        answer_text = self._compose_answer_text_from_exchange(updated_exchange)
+        return self._submit_current_turn(
+            evaluation_id,
+            session_id,
+            answer_text,
+            session_token,
+            client_id,
+            "꼬리질문 답변을 포함해 현재 문제를 저장했습니다.",
+            allow_follow_up_required=True,
+            conversation_history=updated_exchange,
+        )
+
+    def _accumulated_exchange_from_payload(
+        self, payload: InterviewTurnFlowRequest
+    ) -> QuestionExchange:
+        if payload.conversation_history is not None:
+            return payload.conversation_history.model_copy(deep=True)
+        # 후방 호환: 옛 프론트가 draft_answer + follow_up_question 만 보낸 경우 단일 라운드로 재구성.
+        if not payload.follow_up_question.strip():
+            return QuestionExchange(
+                student_answer=payload.draft_answer.strip() or UNANSWERED_TEXT,
+            )
+        return QuestionExchange(
+            student_answer=payload.draft_answer.strip() or UNANSWERED_TEXT,
+            follow_ups=[
+                FollowUpExchange(
+                    question=payload.follow_up_question.strip(),
+                    reason=payload.follow_up_reason.strip(),
+                    answer="",
+                )
+            ],
+        )
+
+    def _finalize_pending_follow_up(
+        self,
+        exchange: QuestionExchange,
+        student_text: str,
+        *,
+        give_up: bool,
+    ) -> QuestionExchange:
+        if not exchange.follow_ups:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="응답을 채울 꼬리질문이 누적 대화에 없습니다.",
+            )
+        follow_ups = [item.model_copy() for item in exchange.follow_ups]
+        last = follow_ups[-1]
+        provided = student_text.strip()
+        if give_up:
+            answer = provided or "(꼬리질문 종료 — 학생이 더 답하지 않음)"
+        else:
+            answer = provided or UNANSWERED_TEXT
+        follow_ups[-1] = FollowUpExchange(
+            question=last.question,
+            reason=last.reason,
+            answer=answer,
+        )
+        return QuestionExchange(
+            student_answer=exchange.student_answer,
+            follow_ups=follow_ups,
+        )
+
+    def _compose_answer_text_from_exchange(
+        self, exchange: QuestionExchange
+    ) -> str:
+        parts: list[str] = []
+        student_answer = exchange.student_answer.strip()
+        if student_answer:
+            parts.append(student_answer)
+        for index, follow_up in enumerate(exchange.follow_ups, start=1):
+            question = follow_up.question.strip()
+            answer = follow_up.answer.strip()
+            if not question and not answer:
+                continue
+            block = [f"[꼬리질문 {index}] {question}".rstrip()]
+            if answer:
+                block.append(f"[답변 {index}] {answer}")
+            parts.append("\n".join(block))
+        return "\n\n".join(parts) or UNANSWERED_TEXT
 
     def _ensure_current_question_matches(
         self, payload: InterviewTurnFlowRequest, current_question_id: str
@@ -296,13 +464,6 @@ class InterviewTurnFlow:
         if question_index >= len(questions):
             return None
         return self.service.repository.to_question_read(questions[question_index])
-
-    def _combine_follow_up(self, payload: InterviewTurnFlowRequest) -> str:
-        parts = [payload.draft_answer.strip()]
-        if payload.follow_up_question and payload.answer_text.strip():
-            parts.append(f"꼬리질문: {payload.follow_up_question.strip()}")
-        parts.append(payload.answer_text.strip())
-        return "\n".join(part for part in parts if part)
 
     def _combine_answer(self, existing: str, addition: str) -> str:
         return "\n".join(part for part in [existing.strip(), addition.strip()] if part)

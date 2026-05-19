@@ -90,12 +90,30 @@ def generate_report_payload(
         ]
         if turn.follow_up_question and turn.finalized_score is None:
             recommended_followups.append(turn.follow_up_question)
+        conversation_payload = from_json(turn.conversation_history_json, {})
+        follow_up_exchanges = [
+            {
+                "round": index,
+                "question": str(item.get("question", "")).strip(),
+                "answer": str(item.get("answer", "")).strip(),
+                "reason": str(item.get("reason", "")).strip(),
+            }
+            for index, item in enumerate(
+                conversation_payload.get("follow_ups", []) or [],
+                start=1,
+            )
+        ]
+        initial_student_answer = str(
+            conversation_payload.get("student_answer", "") or ""
+        ).strip()
         question_evaluations.append(
             {
                 "question_id": turn.question_id,
                 "order_index": question.order_index,
                 "question": turn.question_text,
                 "answer_preview": turn.answer_text[:500],
+                "initial_student_answer": initial_student_answer,
+                "follow_up_exchanges": follow_up_exchanges,
                 "score": effective_score,
                 "max_score": max_score,
                 "summary": turn.evaluation_summary,
