@@ -105,12 +105,26 @@ def judge_answer(
     llm: LlmClient | None = None,
     conversation_history: str = "",
     follow_up_count: int = 0,
+    used_rubric_indices: list[int] | None = None,
 ) -> dict[str, object]:
     if llm is None or not llm.enabled():
         raise RuntimeError(
             "답변 평가에 필요한 LLM client가 비활성화되었습니다. OPENAI_API_KEY와 평가 모델 설정을 확인하세요."
         )
     scoring_rubric = _scoring_rubric_payload(question)
+    rubric_size = len(scoring_rubric)
+    used_set = {int(i) for i in (used_rubric_indices or []) if i is not None}
+    available_indices = [i for i in range(rubric_size) if i not in used_set]
+    if not available_indices:
+        # 모든 채점 기준 항목이 이미 한 번씩 출제됨 → 더 이상 꼬리질문할 수 있는 항목이 없으므로
+        # judge에게 묻지 않고 즉시 종료. (정책: 루브릭 항목당 꼬리질문 최대 1회)
+        return {
+            "needs_follow_up": False,
+            "reason": "모든 채점 기준 항목에 대해 이미 꼬리질문이 1회씩 출제되었으므로 추가 라운드를 진행하지 않습니다.",
+            "request_to_generator": "",
+            "target_rubric_index": None,
+            "target_rubric_description": "",
+        }
     result: JudgeAnswerSchema = llm.parse(
         build_judge_prompt(
             question=question.question,
@@ -121,6 +135,7 @@ def judge_answer(
             source_snippets=_source_snippets(question),
             conversation_history=conversation_history,
             follow_up_count=follow_up_count,
+            used_rubric_indices=sorted(used_set),
         ),
         JudgeAnswerSchema,
         max_tokens=1200,
@@ -129,7 +144,6 @@ def judge_answer(
     request_to_generator = result.request_to_generator.strip()
     target_index = result.target_rubric_index
     target_description = result.target_rubric_description.strip()
-    rubric_size = len(scoring_rubric)
     if result.needs_follow_up:
         if not request_to_generator:
             raise RuntimeError(
@@ -143,6 +157,11 @@ def judge_answer(
             raise RuntimeError(
                 "평가관이 반환한 target_rubric_index가 채점 기준표 범위를 벗어났습니다: "
                 f"index={target_index}, rubric_size={rubric_size}"
+            )
+        if target_index in used_set:
+            raise RuntimeError(
+                "Judge가 이미 꼬리질문이 출제된 rubric index를 다시 선택했습니다. "
+                f"selected={target_index}, used={sorted(used_set)}. 정책 위반 — 우회하지 말고 원인을 추적하세요."
             )
         if not target_description:
             raise RuntimeError(
@@ -258,7 +277,7 @@ def finalize_oral_evaluation(
             *result.evidence_mismatches,
             *result.missing_expected_points,
         ],
-        "suspicious_points": list(result.suspicious_points),
+        "weaknesses": list(result.weaknesses),
         "strengths": list(result.strengths),
     }
 
@@ -269,6 +288,7 @@ def evaluate_answer(
     llm: LlmClient | None = None,
     conversation_history: str = "",
     follow_up_count: int = 0,
+    used_rubric_indices: list[int] | None = None,
 ) -> dict[str, object]:
     judge_result = judge_answer(
         question,
@@ -276,6 +296,7 @@ def evaluate_answer(
         llm=llm,
         conversation_history=conversation_history,
         follow_up_count=follow_up_count,
+        used_rubric_indices=used_rubric_indices,
     )
     if judge_result["needs_follow_up"]:
         target_index = judge_result["target_rubric_index"]
@@ -298,6 +319,8 @@ def evaluate_answer(
             "needs_follow_up": True,
             "follow_up_reason": str(judge_result["reason"]),
             "follow_up_question": follow_up_question,
+            "target_rubric_index": int(target_index),
+            "target_rubric_description": target_description,
         }
     finalized = finalize_oral_evaluation(
         question,
@@ -309,5 +332,7 @@ def evaluate_answer(
         "needs_follow_up": False,
         "follow_up_reason": "",
         "follow_up_question": None,
+        "target_rubric_index": None,
+        "target_rubric_description": "",
         **finalized,
     }

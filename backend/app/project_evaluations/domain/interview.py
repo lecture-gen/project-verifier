@@ -37,7 +37,7 @@ class InterviewTurnRead(BaseModel):
     rubric_scores: list[RubricScoreItem] = Field(default_factory=list)
     evidence_matches: list[str] = Field(default_factory=list)
     evidence_mismatches: list[str] = Field(default_factory=list)
-    suspicious_points: list[str] = Field(default_factory=list)
+    weaknesses: list[str] = Field(default_factory=list)
     strengths: list[str] = Field(default_factory=list)
     follow_up_question: str | None = None
     follow_up_reason: str = ""

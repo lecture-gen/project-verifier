@@ -649,14 +649,10 @@ export interface components {
             bloom_summary?: {
                 [key: string]: unknown;
             }[];
-            /** Evidence Alignment */
-            evidence_alignment?: string[];
             /** Strengths */
             strengths?: string[];
-            /** Suspicious Points */
-            suspicious_points?: string[];
-            /** Recommended Followups */
-            recommended_followups?: string[];
+            /** Weaknesses */
+            weaknesses?: string[];
             /**
              * Created At
              * Format: date-time
@@ -714,6 +710,8 @@ export interface components {
              * @default
              */
             reason: string;
+            /** Target Rubric Index */
+            target_rubric_index?: number | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -888,8 +886,8 @@ export interface components {
             evidence_matches?: string[];
             /** Evidence Mismatches */
             evidence_mismatches?: string[];
-            /** Suspicious Points */
-            suspicious_points?: string[];
+            /** Weaknesses */
+            weaknesses?: string[];
             /** Strengths */
             strengths?: string[];
             /** Follow Up Question */

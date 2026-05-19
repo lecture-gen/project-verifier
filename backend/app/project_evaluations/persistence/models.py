@@ -151,7 +151,7 @@ class InterviewTurnRow(Base):
     evidence_mismatches_json: Mapped[str] = mapped_column(
         Text, nullable=False, default="[]"
     )
-    suspicious_points_json: Mapped[str] = mapped_column(
+    weaknesses_json: Mapped[str] = mapped_column(
         Text, nullable=False, default="[]"
     )
     strengths_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
@@ -200,14 +200,8 @@ class EvaluationReportRow(Base):
         Text, nullable=False, default="[]"
     )
     bloom_summary_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
-    evidence_alignment_json: Mapped[str] = mapped_column(
-        Text, nullable=False, default="[]"
-    )
     strengths_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
-    suspicious_points_json: Mapped[str] = mapped_column(
-        Text, nullable=False, default="[]"
-    )
-    recommended_followups_json: Mapped[str] = mapped_column(
+    weaknesses_json: Mapped[str] = mapped_column(
         Text, nullable=False, default="[]"
     )
     created_at: Mapped[datetime] = mapped_column(

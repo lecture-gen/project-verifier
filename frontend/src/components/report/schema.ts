@@ -21,6 +21,13 @@ export interface RubricBreakdownRow {
   rationale: string;
 }
 
+export interface FollowUpExchangeView {
+  round: number;
+  question: string;
+  answer: string;
+  reason: string;
+}
+
 export interface QuestionEvaluationRow {
   order_index: number;
   question: string;
@@ -29,6 +36,8 @@ export interface QuestionEvaluationRow {
   bloom_level: string;
   summary: string;
   rubric_breakdown: RubricBreakdownRow[];
+  student_answer: string;
+  follow_up_exchanges: FollowUpExchangeView[];
 }
 
 function asString(value: unknown, fallback = ""): string {
@@ -92,6 +101,23 @@ function parseRubricBreakdown(rows: unknown): RubricBreakdownRow[] {
     .filter((row): row is RubricBreakdownRow => row !== null);
 }
 
+function parseFollowUpExchanges(rows: unknown): FollowUpExchangeView[] {
+  if (!Array.isArray(rows)) return [];
+  return rows
+    .map((row, index) => {
+      if (!row || typeof row !== "object") return null;
+      const r = row as Record<string, unknown>;
+      const round = asNumber(r.round, index + 1);
+      return {
+        round,
+        question: asString(r.question),
+        answer: asString(r.answer),
+        reason: asString(r.reason),
+      } satisfies FollowUpExchangeView;
+    })
+    .filter((row): row is FollowUpExchangeView => row !== null);
+}
+
 export function parseQuestionEvaluations(rows: unknown): QuestionEvaluationRow[] {
   if (!Array.isArray(rows)) return [];
   return rows
@@ -106,6 +132,8 @@ export function parseQuestionEvaluations(rows: unknown): QuestionEvaluationRow[]
         bloom_level: asString(r.bloom_level),
         summary: asString(r.summary),
         rubric_breakdown: parseRubricBreakdown(r.rubric_breakdown),
+        student_answer: asString(r.student_answer),
+        follow_up_exchanges: parseFollowUpExchanges(r.follow_up_exchanges),
       } satisfies QuestionEvaluationRow;
     })
     .filter((row): row is QuestionEvaluationRow => row !== null);

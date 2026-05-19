@@ -37,9 +37,7 @@ def generate_report_payload(
     score_ratio_by_bloom: dict[str, list[float]] = defaultdict(list)
     bloom_summary_acc: dict[str, dict[str, Any]] = {}
     strengths: list[str] = []
-    suspicious_points: list[str] = []
-    evidence_alignment: list[str] = []
-    recommended_followups: list[str] = []
+    weaknesses: list[str] = []
     rubric_scores_by_turn = rubric_scores_by_turn or {}
 
     total_score = 0.0
@@ -71,8 +69,7 @@ def generate_report_payload(
         score_ratio_by_area[area_name].append(ratio_pct)
         score_ratio_by_bloom[bloom_level].append(ratio_pct)
         strengths.extend(from_json(turn.strengths_json, []))
-        suspicious_points.extend(from_json(turn.suspicious_points_json, []))
-        evidence_alignment.extend(from_json(turn.evidence_matches_json, []))
+        weaknesses.extend(from_json(turn.weaknesses_json, []))
         source_refs = from_json(question.source_refs_json, [])
         if not source_refs:
             raise RuntimeError(f"리포트 입력 질문에 source refs가 없습니다. question_id={question.id}")
@@ -88,8 +85,6 @@ def generate_report_payload(
             }
             for item in sorted(rubric_scores, key=lambda item: int(item.get("criterion_index", 0)))
         ]
-        if turn.follow_up_question and turn.finalized_score is None:
-            recommended_followups.append(turn.follow_up_question)
         conversation_payload = from_json(turn.conversation_history_json, {})
         follow_up_exchanges = [
             {
@@ -112,7 +107,9 @@ def generate_report_payload(
                 "order_index": question.order_index,
                 "question": turn.question_text,
                 "answer_preview": turn.answer_text[:500],
-                "initial_student_answer": initial_student_answer,
+                # `student_answer`/`follow_up_exchanges`는 리포트 응답에 결정적으로 그대로 노출된다.
+                # LLM은 작성하지 않고, 백엔드가 turn 데이터에서 채워 question_evaluations 후처리에서 머지한다.
+                "student_answer": initial_student_answer,
                 "follow_up_exchanges": follow_up_exchanges,
                 "score": effective_score,
                 "max_score": max_score,
@@ -121,11 +118,6 @@ def generate_report_payload(
                 "bloom_level": bloom_level,
                 "source_refs": source_refs,
                 "rubric_breakdown": rubric_breakdown,
-                "evidence_matches": from_json(turn.evidence_matches_json, []),
-                "evidence_mismatches": from_json(turn.evidence_mismatches_json, []),
-                "suspicious_points": from_json(turn.suspicious_points_json, []),
-                "follow_up_question": turn.follow_up_question,
-                "needs_follow_up": bool(turn.follow_up_question and turn.finalized_score is None),
             }
         )
 
@@ -169,10 +161,8 @@ def generate_report_payload(
         "area_analyses": area_analyses,
         "question_evaluations": question_evaluations,
         "bloom_summary": list(bloom_summary_acc.values()),
-        "evidence_alignment": unique(evidence_alignment),
         "strengths": unique(strengths),
-        "suspicious_points": unique(suspicious_points),
-        "recommended_followups": unique(recommended_followups),
+        "weaknesses": unique(weaknesses),
     }
     result: ReportSchema = llm.parse(
         build_report_prompt(report_input),
@@ -183,6 +173,26 @@ def generate_report_payload(
         decision = FinalDecision(result.final_decision)
     except ValueError as exc:
         raise RuntimeError(f"LLM이 지원하지 않는 최종 판정을 반환했습니다: {result.final_decision}") from exc
+
+    # 문제별 student_answer/follow_up_exchanges 는 LLM이 작성하지 않는다.
+    # order_index를 키로 백엔드의 결정적 값을 LLM 출력에 머지(=덮어쓰기)한다.
+    deterministic_by_order: dict[int, dict[str, Any]] = {
+        int(item["order_index"]): item for item in question_evaluations
+    }
+    merged_question_evaluations: list[dict[str, Any]] = []
+    for item in result.question_evaluations:
+        dumped = item.model_dump()
+        order_index = int(dumped.get("order_index", -1))
+        deterministic = deterministic_by_order.get(order_index)
+        if deterministic is None:
+            raise RuntimeError(
+                "리포트 후처리: LLM이 반환한 question_evaluations.order_index에 대응하는 결정적 입력을 찾을 수 없습니다. "
+                f"order_index={order_index}. 우회 금지 — 원인을 추적하세요."
+            )
+        dumped["student_answer"] = str(deterministic.get("student_answer") or "")
+        dumped["follow_up_exchanges"] = list(deterministic.get("follow_up_exchanges") or [])
+        merged_question_evaluations.append(dumped)
+
     return {
         "final_decision": decision,
         "authenticity_score": normalized_total_score,
@@ -190,12 +200,10 @@ def generate_report_payload(
         "total_max_score": 100.0,
         "summary": result.summary,
         "area_analyses": [item.model_dump() for item in result.area_analyses],
-        "question_evaluations": [item.model_dump() for item in result.question_evaluations],
+        "question_evaluations": merged_question_evaluations,
         "bloom_summary": [item.model_dump() for item in result.bloom_summary],
-        "evidence_alignment": result.evidence_alignment,
         "strengths": result.strengths,
-        "suspicious_points": result.suspicious_points,
-        "recommended_followups": result.recommended_followups,
+        "weaknesses": result.weaknesses,
     }
 
 

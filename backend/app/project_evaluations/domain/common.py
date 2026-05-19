@@ -26,6 +26,10 @@ class FollowUpExchange(BaseModel):
     question: str
     answer: str
     reason: str = ""
+    # 이 꼬리질문이 어떤 채점 기준(rubric index)을 보충하려 했는지 기록한다.
+    # 같은 항목이 한 세션에서 두 번 꼬리질문되지 않게 하기 위한 핵심 데이터.
+    # 학생이 답하지 못한(SKIP) 라운드여도 채워 둔다 → 다음 라운드 used 집합 계산에 사용.
+    target_rubric_index: int | None = None
 
 
 class QuestionExchange(BaseModel):

@@ -157,6 +157,7 @@ class InterviewTurnFlow:
                         question=follow_up["question"],
                         reason=follow_up["reason"],
                         answer="",
+                        target_rubric_index=follow_up["target_rubric_index"],
                     )
                 ],
             )
@@ -247,6 +248,7 @@ class InterviewTurnFlow:
                         question=follow_up["question"],
                         reason=follow_up["reason"],
                         answer="",
+                        target_rubric_index=follow_up["target_rubric_index"],
                     ),
                 ],
             )
@@ -316,6 +318,7 @@ class InterviewTurnFlow:
             question=last.question,
             reason=last.reason,
             answer=answer,
+            target_rubric_index=last.target_rubric_index,
         )
         return QuestionExchange(
             student_answer=exchange.student_answer,

@@ -441,7 +441,7 @@ class ProjectEvaluationRepository:
         rubric_scores: list[RubricScoreItem],
         evidence_matches: list[str],
         evidence_mismatches: list[str],
-        suspicious_points: list[str],
+        weaknesses: list[str],
         strengths: list[str],
         follow_up_question: str | None,
         follow_up_reason: str = "",
@@ -458,7 +458,7 @@ class ProjectEvaluationRepository:
             evaluation_summary=evaluation_summary,
             evidence_matches_json=to_json(evidence_matches),
             evidence_mismatches_json=to_json(evidence_mismatches),
-            suspicious_points_json=to_json(suspicious_points),
+            weaknesses_json=to_json(weaknesses),
             strengths_json=to_json(strengths),
             follow_up_question=follow_up_question,
             follow_up_reason=follow_up_reason,
@@ -500,7 +500,7 @@ class ProjectEvaluationRepository:
         rubric_scores: list[RubricScoreItem],
         evidence_matches: list[str],
         evidence_mismatches: list[str],
-        suspicious_points: list[str],
+        weaknesses: list[str],
         strengths: list[str],
         finalized_score: float | None = None,
     ) -> InterviewTurnRead:
@@ -511,7 +511,7 @@ class ProjectEvaluationRepository:
         turn.evaluation_summary = evaluation_summary
         turn.evidence_matches_json = to_json(evidence_matches)
         turn.evidence_mismatches_json = to_json(evidence_mismatches)
-        turn.suspicious_points_json = to_json(suspicious_points)
+        turn.weaknesses_json = to_json(weaknesses)
         turn.strengths_json = to_json(strengths)
         turn.finalized_score = finalized_score
         self.session.execute(delete(RubricScoreRow).where(RubricScoreRow.turn_id == turn_id))
@@ -605,10 +605,8 @@ class ProjectEvaluationRepository:
         area_analyses: list[dict[str, Any]],
         question_evaluations: list[dict[str, Any]],
         bloom_summary: list[dict[str, Any]],
-        evidence_alignment: list[str],
         strengths: list[str],
-        suspicious_points: list[str],
-        recommended_followups: list[str],
+        weaknesses: list[str],
     ) -> EvaluationReportRead:
         session = self.get_session_row(session_id)
         if session is not None:
@@ -626,10 +624,8 @@ class ProjectEvaluationRepository:
             area_analyses_json=to_json(area_analyses),
             question_evaluations_json=to_json(question_evaluations),
             bloom_summary_json=to_json(bloom_summary),
-            evidence_alignment_json=to_json(evidence_alignment),
             strengths_json=to_json(strengths),
-            suspicious_points_json=to_json(suspicious_points),
-            recommended_followups_json=to_json(recommended_followups),
+            weaknesses_json=to_json(weaknesses),
         )
         self.session.add(row)
         self.session.execute(
@@ -653,10 +649,8 @@ class ProjectEvaluationRepository:
         area_analyses: list[dict[str, Any]],
         question_evaluations: list[dict[str, Any]],
         bloom_summary: list[dict[str, Any]],
-        evidence_alignment: list[str],
         strengths: list[str],
-        suspicious_points: list[str],
-        recommended_followups: list[str],
+        weaknesses: list[str],
     ) -> EvaluationReportRead:
         row = EvaluationReportRow(
             id=new_id(),
@@ -670,10 +664,8 @@ class ProjectEvaluationRepository:
             area_analyses_json=to_json(area_analyses),
             question_evaluations_json=to_json(question_evaluations),
             bloom_summary_json=to_json(bloom_summary),
-            evidence_alignment_json=to_json(evidence_alignment),
             strengths_json=to_json(strengths),
-            suspicious_points_json=to_json(suspicious_points),
-            recommended_followups_json=to_json(recommended_followups),
+            weaknesses_json=to_json(weaknesses),
         )
         self.session.add(row)
         self.session.commit()
@@ -835,7 +827,7 @@ class ProjectEvaluationRepository:
             rubric_scores=rubric_scores,
             evidence_matches=from_json(row.evidence_matches_json, []),
             evidence_mismatches=from_json(row.evidence_mismatches_json, []),
-            suspicious_points=from_json(row.suspicious_points_json, []),
+            weaknesses=from_json(row.weaknesses_json, []),
             strengths=from_json(row.strengths_json, []),
             follow_up_question=row.follow_up_question,
             follow_up_reason=row.follow_up_reason,
@@ -857,9 +849,7 @@ class ProjectEvaluationRepository:
             area_analyses=from_json(row.area_analyses_json, []),
             question_evaluations=from_json(row.question_evaluations_json, []),
             bloom_summary=from_json(row.bloom_summary_json, []),
-            evidence_alignment=from_json(row.evidence_alignment_json, []),
             strengths=from_json(row.strengths_json, []),
-            suspicious_points=from_json(row.suspicious_points_json, []),
-            recommended_followups=from_json(row.recommended_followups_json, []),
+            weaknesses=from_json(row.weaknesses_json, []),
             created_at=row.created_at,
         )

@@ -812,7 +812,7 @@ class ProjectEvaluationService:
                 rubric_scores=list(evaluation["rubric_scores"]),
                 evidence_matches=list(evaluation["evidence_matches"]),
                 evidence_mismatches=list(evaluation["evidence_mismatches"]),
-                suspicious_points=list(evaluation["suspicious_points"]),
+                weaknesses=list(evaluation["weaknesses"]),
                 strengths=list(evaluation["strengths"]),
                 follow_up_question=follow_up_question or evaluation.get("follow_up_question"),
                 follow_up_reason=follow_up_reason or str(evaluation.get("follow_up_reason", "")),
@@ -844,6 +844,13 @@ class ProjectEvaluationService:
         current_history_text = (
             conversation_history_text(exchange) if exchange.follow_ups else ""
         )
+        # 루브릭 항목당 꼬리질문은 한 세션에서 최대 1회만 출제한다.
+        # 이미 출제된 항목 index를 모아 evaluator에 전달 → judge가 후보에서 제외.
+        used_rubric_indices = [
+            int(fu.target_rubric_index)
+            for fu in exchange.follow_ups
+            if fu.target_rubric_index is not None
+        ]
         try:
             evaluation = evaluate_answer(
                 questions[question_order_index],
@@ -851,6 +858,7 @@ class ProjectEvaluationService:
                 llm=self._eval_llm,
                 conversation_history=current_history_text,
                 follow_up_count=len(exchange.follow_ups),
+                used_rubric_indices=used_rubric_indices,
             )
         except Exception as exc:
             raise HTTPException(
@@ -868,9 +876,16 @@ class ProjectEvaluationService:
         follow_up = str(evaluation.get("follow_up_question") or "").strip()
         if not follow_up:
             return None
+        target_index_raw = evaluation.get("target_rubric_index")
+        if target_index_raw is None:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="꼬리질문이 생성되었지만 target_rubric_index가 비어 있습니다.",
+            )
         return {
             "question": follow_up,
             "reason": str(evaluation.get("follow_up_reason") or "").strip(),
+            "target_rubric_index": int(target_index_raw),
         }
 
     def list_turns(
@@ -958,7 +973,7 @@ class ProjectEvaluationService:
                     rubric_scores=list(finalized["rubric_scores"]),
                     evidence_matches=list(finalized["evidence_matches"]),
                     evidence_mismatches=list(finalized["evidence_mismatches"]),
-                    suspicious_points=list(finalized["suspicious_points"]),
+                    weaknesses=list(finalized["weaknesses"]),
                     strengths=list(finalized["strengths"]),
                     finalized_score=float(finalized["score"]),
                 )
@@ -1005,10 +1020,8 @@ class ProjectEvaluationService:
             area_analyses=list(report["area_analyses"]),
             question_evaluations=list(report["question_evaluations"]),
             bloom_summary=list(report["bloom_summary"]),
-            evidence_alignment=list(report["evidence_alignment"]),
             strengths=list(report["strengths"]),
-            suspicious_points=list(report["suspicious_points"]),
-            recommended_followups=list(report["recommended_followups"]),
+            weaknesses=list(report["weaknesses"]),
         )
 
     def abort_session(
