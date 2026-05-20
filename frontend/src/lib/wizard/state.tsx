@@ -146,40 +146,33 @@ export function useWizardState(): WizardContextValue {
   return ctx;
 }
 
-// 좌측 rail / 우측 outcome 카피에 사용할 stage 메타데이터.
+// 좌측 rail / 우측 큰 제목 카피에 사용할 stage 메타데이터.
 export interface StageMeta {
-  // 좌측 rail 의 짧은 라벨 (한 단어 권장).
+  // 좌측 rail 의 짧은 라벨.
   label: string;
   // 우측 큰 제목.
   title: string;
-  // 우측 상단 "이 단계가 끝나면 …" 한 줄 outcome.
-  outcome: string;
 }
 
 export const STAGE_META: Record<WizardStep, StageMeta> = {
   1: {
-    label: "정의",
-    title: "평가를 정의하세요.",
-    outcome: "이 단계가 끝나면 평가가 생성되고 평가 ID가 발급됩니다.",
+    label: "정보 입력",
+    title: "평가 정보를 입력하세요.",
   },
   2: {
-    label: "자료",
-    title: "자료를 받아 분석합니다.",
-    outcome: "이 단계가 끝나면 zip이 분석되어 프로젝트 맥락이 만들어집니다.",
+    label: "자료 등록",
+    title: "프로젝트 자료를 등록하세요.",
   },
   3: {
-    label: "정책",
-    title: "질문 정책을 정의합니다.",
-    outcome: "이 단계가 끝나면 질문 생성에 쓰일 정책이 저장됩니다.",
+    label: "비율 설정",
+    title: "질문 비율을 설정하세요.",
   },
   4: {
-    label: "검토",
-    title: "질문을 미리 확인합니다.",
-    outcome: "이 단계가 끝나면 생성된 질문 목록이 확정됩니다.",
+    label: "문항 생성",
+    title: "평가 문항을 생성하세요.",
   },
   5: {
-    label: "공유",
-    title: "학생에게 공유합니다.",
-    outcome: "이 단계가 끝나면 학생 입장 URL과 비밀번호가 발급됩니다.",
+    label: "최종 확인",
+    title: "내용을 최종 확인하세요.",
   },
 };

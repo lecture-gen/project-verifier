@@ -2,7 +2,7 @@
 
 // 시안 B (Cinema Stepper) — 한 페이지처럼 보이지만 실제 라우팅은 없는 마법사 셸.
 // 좌측 세로 stepper rail 은 page 수준에서 그리고, 이 컴포넌트는 우측 본문 패널만 담당한다.
-// 구조: outcome 한 줄 → 큰 제목 → step 본문 (자체 스크롤) → 우측 하단 nav.
+// 구조: 큰 제목 → step 본문 (자체 스크롤) → 우측 하단 nav.
 // 본문 영역만 내부 스크롤하며 페이지 자체 스크롤바는 노출되지 않는다.
 
 import type { ReactNode } from "react";
@@ -34,19 +34,10 @@ export function WizardShell({ step, children, className }: WizardShellProps) {
         className,
       )}
     >
-      <header className="shrink-0 space-y-4 pb-6 md:pb-8">
-        <div className="flex items-center gap-3 text-xs uppercase tracking-[0.28em] text-muted-foreground">
-          <span className="inline-flex h-1 w-1 rounded-full bg-foreground/40" />
-          <span>이 단계가 끝나면</span>
-        </div>
-        <p className="text-sm leading-relaxed text-foreground/80 sm:text-base">
-          {meta.outcome}
-        </p>
-        <div className="pt-2">
-          <h2 className="font-serif text-3xl leading-tight tracking-tight text-foreground sm:text-4xl md:text-5xl">
-            {meta.title}
-          </h2>
-        </div>
+      <header className="shrink-0 pb-6 md:pb-8">
+        <h2 className="font-serif text-3xl leading-tight tracking-tight text-foreground sm:text-4xl md:text-5xl">
+          {meta.title}
+        </h2>
       </header>
 
       {/* 본문 자체 스크롤 영역. 페이지 스크롤바는 숨김 (.no-scrollbar). */}

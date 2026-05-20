@@ -2,7 +2,7 @@
 
 // 단일 페이지 마법사의 5개 stage 본문. 각 stage 는 자기 폼/콘텐츠만 렌더하고,
 // 우측 하단 [다음 →] 버튼은 wizard state 의 setAdvance(...) 로 등록한 핸들러가 처리한다.
-// 외곽 셸(좌측 rail, outcome, 제목, nav)은 WizardShell + page 가 책임진다.
+// 외곽 셸(좌측 rail, 제목, nav)은 WizardShell + page 가 책임진다.
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Copy } from "lucide-react";
@@ -392,7 +392,9 @@ export function Stage4Questions() {
   const hasQuestions = questions.length > 0;
 
   const showBlockedReason = Boolean(
-    status?.blocked_reason && (hasAttemptedGeneration || hasQuestions),
+    status?.blocked_reason &&
+      !generateMutation.isPending &&
+      (hasAttemptedGeneration || hasQuestions),
   );
 
   async function onGenerate() {
