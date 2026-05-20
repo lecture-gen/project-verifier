@@ -106,6 +106,7 @@ def judge_answer(
     conversation_history: str = "",
     follow_up_count: int = 0,
     used_rubric_indices: list[int] | None = None,
+    project_context_brief: str = "",
 ) -> dict[str, object]:
     if llm is None or not llm.enabled():
         raise RuntimeError(
@@ -136,6 +137,7 @@ def judge_answer(
             conversation_history=conversation_history,
             follow_up_count=follow_up_count,
             used_rubric_indices=sorted(used_set),
+            project_context_brief=project_context_brief,
         ),
         JudgeAnswerSchema,
         max_tokens=1200,
@@ -194,6 +196,7 @@ def generate_follow_up_question(
     target_rubric_description: str,
     llm: LlmClient | None = None,
     conversation_history: str = "",
+    project_context_brief: str = "",
 ) -> str:
     if llm is None or not llm.enabled():
         raise RuntimeError(
@@ -220,6 +223,7 @@ def generate_follow_up_question(
             target_rubric_index=target_rubric_index,
             target_rubric_description=target_rubric_description,
             conversation_history=conversation_history,
+            project_context_brief=project_context_brief,
         ),
         FollowUpQuestionSchema,
         max_tokens=800,
@@ -235,6 +239,7 @@ def finalize_oral_evaluation(
     answer_text: str,
     llm: LlmClient | None = None,
     conversation_history: str = "",
+    project_context_brief: str = "",
 ) -> dict[str, object]:
     if llm is None or not llm.enabled():
         raise RuntimeError(
@@ -251,6 +256,7 @@ def finalize_oral_evaluation(
             answer_text=answer_text,
             source_snippets=_source_snippets(question),
             conversation_history=conversation_history,
+            project_context_brief=project_context_brief,
         ),
         FinalizeAnswerSchema,
         max_tokens=2000,
@@ -289,6 +295,7 @@ def evaluate_answer(
     conversation_history: str = "",
     follow_up_count: int = 0,
     used_rubric_indices: list[int] | None = None,
+    project_context_brief: str = "",
 ) -> dict[str, object]:
     judge_result = judge_answer(
         question,
@@ -297,6 +304,7 @@ def evaluate_answer(
         conversation_history=conversation_history,
         follow_up_count=follow_up_count,
         used_rubric_indices=used_rubric_indices,
+        project_context_brief=project_context_brief,
     )
     if judge_result["needs_follow_up"]:
         target_index = judge_result["target_rubric_index"]
@@ -314,6 +322,7 @@ def evaluate_answer(
             target_rubric_description=target_description,
             llm=llm,
             conversation_history=conversation_history,
+            project_context_brief=project_context_brief,
         )
         return {
             "needs_follow_up": True,
@@ -327,6 +336,7 @@ def evaluate_answer(
         answer_text,
         llm=llm,
         conversation_history=conversation_history,
+        project_context_brief=project_context_brief,
     )
     return {
         "needs_follow_up": False,

@@ -21,6 +21,7 @@ from app.project_evaluations.analysis.context_builder import (
     build_project_context,
 )
 from app.project_evaluations.analysis.llm_client import LlmClient
+from app.project_evaluations.analysis.prompts import build_project_context_brief
 from app.project_evaluations.domain.models import (
     ArtifactStatus,
     ArtifactUploadResult,
@@ -756,6 +757,11 @@ class ProjectEvaluationService:
         )
         current_history_text = conversation_history_text(current_exchange)
         follow_up_count = len(current_exchange.follow_ups)
+        # 꼬리질문 에이전트(JUDGE/FOLLOW_UP/FINALIZE)에 학생 프로젝트 좌표를 주입한다.
+        # 없으면 빈 문자열이라 프롬프트에서 섹션 자체가 생략된다.
+        project_context_brief = build_project_context_brief(
+            self.repository.get_context(evaluation_id)
+        )
 
         try:
             evaluation = evaluate_answer(
@@ -764,6 +770,7 @@ class ProjectEvaluationService:
                 llm=self._eval_llm,
                 conversation_history=current_history_text,
                 follow_up_count=follow_up_count,
+                project_context_brief=project_context_brief,
             )
             if evaluation["needs_follow_up"]:
                 if not allow_follow_up_required:
@@ -782,6 +789,7 @@ class ProjectEvaluationService:
                     payload.answer_text,
                     llm=self._eval_llm,
                     conversation_history=current_history_text,
+                    project_context_brief=project_context_brief,
                 )
                 evaluation = {
                     "needs_follow_up": False,
@@ -851,6 +859,9 @@ class ProjectEvaluationService:
             for fu in exchange.follow_ups
             if fu.target_rubric_index is not None
         ]
+        project_context_brief = build_project_context_brief(
+            self.repository.get_context(evaluation_id)
+        )
         try:
             evaluation = evaluate_answer(
                 questions[question_order_index],
@@ -859,6 +870,7 @@ class ProjectEvaluationService:
                 conversation_history=current_history_text,
                 follow_up_count=len(exchange.follow_ups),
                 used_rubric_indices=used_rubric_indices,
+                project_context_brief=project_context_brief,
             )
         except Exception as exc:
             raise HTTPException(
@@ -941,6 +953,11 @@ class ProjectEvaluationService:
             )
 
         questions_by_id = {question.id: question for question in questions}
+        # 평가 완료 시 모든 turn 의 최종 채점을 다시 도는 루프. 동일 평가이므로
+        # 프로젝트 좌표는 루프 밖에서 1회만 빌드해 모든 finalize 호출에 재사용한다.
+        project_context_brief = build_project_context_brief(
+            self.repository.get_context(evaluation_id)
+        )
         try:
             for turn in turns:
                 question = questions_by_id.get(turn.question_id)
@@ -965,6 +982,7 @@ class ProjectEvaluationService:
                     turn.answer_text,
                     llm=self._eval_llm,
                     conversation_history=conversation_history_text(exchange),
+                    project_context_brief=project_context_brief,
                 )
                 self.repository.update_turn_evaluation(
                     turn.id,
