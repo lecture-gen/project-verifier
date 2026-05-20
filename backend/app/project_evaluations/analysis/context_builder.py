@@ -1,4 +1,5 @@
 import json
+import math
 from collections import Counter
 from pathlib import PurePosixPath
 
@@ -24,26 +25,34 @@ ROOT_DOC_NAMES = {
 }
 
 def build_project_context(
-    artifacts: list[ProjectArtifactRow], llm: LlmClient | None = None
+    artifacts: list[ProjectArtifactRow],
+    llm: LlmClient | None = None,
+    cache_key: str | None = None,
 ) -> dict[str, object]:
     extracted = [a for a in artifacts if a.raw_text.strip()]
     if llm is None or not llm.enabled():
         raise RuntimeError("프로젝트 context 생성에 필요한 LLM client가 비활성화되었습니다. OPENAI_API_KEY와 분석 모델 설정을 확인하세요.")
-    return _build_with_llm(extracted, llm)
+    return _build_with_llm(extracted, llm, cache_key=cache_key)
 
 
 def _build_with_llm(
-    artifacts: list[ProjectArtifactRow], llm: LlmClient
+    artifacts: list[ProjectArtifactRow],
+    llm: LlmClient,
+    cache_key: str | None = None,
 ) -> dict[str, object]:
     from app.project_evaluations.analysis.structural_extractor import (
         extract_structural_facts,
     )
 
-    snippets = _representative_snippets(artifacts)
+    # R2-A 보수적: 분석 청크 수를 artifact 규모에 비례해 자동 산정한다.
+    # 큰 zip(추출 텍스트 artifact ≥ 16)은 기존 24 그대로, 작은 zip 은 비례 축소(최소 8).
+    # 청크 본문 1500자 컷은 _format_context_chunk 에서 유지 — 코드 함수 본문 손실 방지.
+    effective_max = min(24, max(8, math.ceil(len(artifacts) / 2)))
+    snippets = _representative_snippets(artifacts, max_snippets=effective_max)
     structural_facts = extract_structural_facts(artifacts)
     messages = build_context_prompt(snippets, structural_facts=structural_facts)
     result: ProjectContextSchema = llm.parse(
-        messages, ProjectContextSchema, max_tokens=6000
+        messages, ProjectContextSchema, max_tokens=6000, cache_key=cache_key
     )
     areas = [
         {

@@ -18,6 +18,7 @@ def generate_report_payload(
     turns: list[InterviewTurnRow],
     llm: LlmClient | None = None,
     rubric_scores_by_turn: dict[str, list[dict[str, Any]]] | None = None,
+    cache_key: str | None = None,
 ) -> dict[str, Any]:
     if llm is None or not llm.enabled():
         raise RuntimeError("최종 리포트 생성에 필요한 LLM client가 비활성화되었습니다. OPENAI_API_KEY와 평가 모델 설정을 확인하세요.")
@@ -168,6 +169,7 @@ def generate_report_payload(
         build_report_prompt(report_input),
         ReportSchema,
         max_tokens=4000,
+        cache_key=cache_key,
     )
     try:
         decision = FinalDecision(result.final_decision)

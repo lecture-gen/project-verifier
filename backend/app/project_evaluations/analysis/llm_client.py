@@ -33,14 +33,18 @@ class LlmClient:
         messages: list[dict[str, str]],
         temperature: float = 0.3,
         max_tokens: int = 2000,
+        cache_key: str | None = None,
     ) -> str:
         if self._client is None:
             raise RuntimeError("LLM client is disabled (no API key)")
+        options = self._completion_options(
+            temperature=temperature, max_tokens=max_tokens, cache_key=cache_key
+        )
         response = self._with_retry(
             lambda: self._client.chat.completions.create(
                 model=self.model,
                 messages=messages,  # type: ignore[arg-type]
-                **self._completion_options(temperature=temperature, max_tokens=max_tokens),
+                **options,
             )
         )
         return response.choices[0].message.content or ""
@@ -51,15 +55,19 @@ class LlmClient:
         schema: type[Any],
         temperature: float = 0.2,
         max_tokens: int = 3000,
+        cache_key: str | None = None,
     ) -> Any:
         if self._client is None:
             raise RuntimeError("LLM client is disabled (no API key)")
+        options = self._completion_options(
+            temperature=temperature, max_tokens=max_tokens, cache_key=cache_key
+        )
         response = self._with_retry(
             lambda: self._client.chat.completions.parse(
                 model=self.model,
                 messages=messages,  # type: ignore[arg-type]
                 response_format=schema,
-                **self._completion_options(temperature=temperature, max_tokens=max_tokens),
+                **options,
             )
         )
         message = response.choices[0].message
@@ -83,8 +91,17 @@ class LlmClient:
             raise RuntimeError("LLM 호출이 실행되지 않았습니다.")
         raise last_error
 
-    def _completion_options(self, temperature: float, max_tokens: int) -> dict[str, Any]:
+    def _completion_options(
+        self,
+        temperature: float,
+        max_tokens: int,
+        cache_key: str | None = None,
+    ) -> dict[str, Any]:
         model = self.model.strip().lower()
         if model.startswith(("gpt-5", "o1", "o3", "o4")):
-            return {"max_completion_tokens": max_tokens}
-        return {"temperature": temperature, "max_tokens": max_tokens}
+            options: dict[str, Any] = {"max_completion_tokens": max_tokens}
+        else:
+            options = {"temperature": temperature, "max_tokens": max_tokens}
+        if cache_key:
+            options["prompt_cache_key"] = cache_key
+        return options

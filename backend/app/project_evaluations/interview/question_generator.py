@@ -82,7 +82,12 @@ def _generate_with_llm(
         available_source_refs=context_pack.source_refs,
     )
     max_tokens = _question_generation_max_tokens(len(sequence))
-    result: QuestionsSchema = llm.parse(messages, QuestionsSchema, max_tokens=max_tokens)
+    result: QuestionsSchema = llm.parse(
+        messages,
+        QuestionsSchema,
+        max_tokens=max_tokens,
+        cache_key=f"questions:{evaluation_id}",
+    )
     if len(result.questions) != len(sequence):
         raise RuntimeError(f"LLM이 질문 {len(sequence)}개를 생성하지 못했습니다.")
 

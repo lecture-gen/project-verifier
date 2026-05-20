@@ -52,7 +52,6 @@ from app.project_evaluations.ingestion.zip_handler import (
 from app.project_evaluations.interview.evaluator import (
     conversation_history_text,
     evaluate_answer,
-    finalize_oral_evaluation,
 )
 from app.project_evaluations.interview.question_generator import (
     generate_questions,
@@ -403,7 +402,11 @@ class ProjectEvaluationService:
         artifacts = self.repository.list_artifact_rows(evaluation_id)
         rag_status = self._build_rag_status(evaluation_id, artifacts)
         try:
-            context = build_project_context(artifacts, llm=self._analysis_llm)
+            context = build_project_context(
+                artifacts,
+                llm=self._analysis_llm,
+                cache_key=f"analysis:{evaluation_id}",
+            )
         except Exception as exc:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
@@ -784,19 +787,19 @@ class ProjectEvaluationService:
                             "follow_up_reason": evaluation["follow_up_reason"],
                         },
                     )
-                finalized = finalize_oral_evaluation(
+                # R1 통합: 별도 finalize 콜 대신 evaluate_answer 를 force_finalize=True 로 재호출.
+                # judge_answer 가 used_rubric_indices 에 전체 인덱스를 주입해 needs_follow_up=false
+                # 분기를 강제로 받는다. (judge 통합 1콜 + force_finalize 1콜 = 총 2콜.
+                # 기존: judge + follow_up_q + finalize = 3콜)
+                evaluation = evaluate_answer(
                     question,
                     payload.answer_text,
                     llm=self._eval_llm,
                     conversation_history=current_history_text,
+                    follow_up_count=follow_up_count,
                     project_context_brief=project_context_brief,
+                    force_finalize=True,
                 )
-                evaluation = {
-                    "needs_follow_up": False,
-                    "follow_up_reason": follow_up_reason,
-                    "follow_up_question": follow_up_question,
-                    **finalized,
-                }
         except HTTPException:
             raise
         except Exception as exc:
@@ -977,12 +980,15 @@ class ProjectEvaluationService:
                     exchange = QuestionExchange(
                         student_answer=turn.answer_text.strip() or "(답변 없음)"
                     )
-                finalized = finalize_oral_evaluation(
+                # R1 통합: 별도 finalize 콜 대신 evaluate_answer 를 force_finalize=True 로 호출.
+                finalized = evaluate_answer(
                     question,
                     turn.answer_text,
                     llm=self._eval_llm,
                     conversation_history=conversation_history_text(exchange),
+                    follow_up_count=len(exchange.follow_ups),
                     project_context_brief=project_context_brief,
+                    force_finalize=True,
                 )
                 self.repository.update_turn_evaluation(
                     turn.id,
@@ -1016,6 +1022,7 @@ class ProjectEvaluationService:
                 turns,
                 llm=self._report_llm,
                 rubric_scores_by_turn=rubric_scores_by_turn,
+                cache_key=f"report:{evaluation_id}",
             )
         except Exception as exc:
             raise HTTPException(
