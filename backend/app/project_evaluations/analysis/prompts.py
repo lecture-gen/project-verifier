@@ -1062,9 +1062,11 @@ def build_context_prompt(
 def _format_structural_facts(facts: dict[str, Any]) -> str:
     """LLM 입력용으로 structural_facts를 길이 제한된 텍스트로 직렬화한다.
 
-    file_tree는 평탄 JSON 대신 들여쓰기 텍스트 트리로 변환한다 (옵션 1-A).
-    path prefix 가 반복되지 않아 동일 정보를 40-50% 적은 토큰으로 표현한다.
-    dependencies 는 그대로 JSON 직렬화하되 상한을 둔다.
+    토큰 절감을 위해 두 개의 큰 필드는 JSON 대신 사람이 읽는 텍스트로 변환한다.
+      - file_tree: 평탄 JSON → 들여쓰기 텍스트 트리 (옵션 1-A)
+      - dependencies: 평탄 JSON → manifest·scope 별 그룹 한 줄 표기 (옵션 1-3)
+
+    원본 structural_facts (DB/UI 도메인 모델 소비자) 에는 영향을 주지 않는다.
     """
     if not facts:
         return "(structural facts not available)"
@@ -1078,22 +1080,71 @@ def _format_structural_facts(facts: dict[str, Any]) -> str:
         notes.append(
             f"file_tree truncated to first 200 of {original_tree_len} entries"
         )
-    # file_tree 자체는 LLM 직렬화 단계에서만 텍스트 트리로 치환한다.
-    # 원본 structural_facts (DB/UI 도메인 모델 소비자) 에는 영향을 주지 않는다.
     file_tree_block = _file_tree_to_indented_text(file_tree)
     truncated.pop("file_tree", None)
 
     dependencies = truncated.get("dependencies")
-    if isinstance(dependencies, list) and len(dependencies) > 120:
-        truncated["dependencies"] = dependencies[:120]
-        notes.append(f"dependencies truncated to first 120 of {len(dependencies)} entries")
+    original_dep_len = len(dependencies) if isinstance(dependencies, list) else 0
+    if isinstance(dependencies, list) and original_dep_len > 120:
+        dependencies = dependencies[:120]
+        notes.append(
+            f"dependencies truncated to first 120 of {original_dep_len} entries"
+        )
+    dependencies_block = _dependencies_to_grouped_text(dependencies)
+    truncated.pop("dependencies", None)
+
     if notes:
         truncated["_truncation_notes"] = notes
 
     import json as _json
 
     other_block = _json.dumps(truncated, ensure_ascii=False, indent=2)
-    return f"{other_block}\n\nfile_tree (indented text):\n{file_tree_block}"
+    return (
+        f"{other_block}\n\n"
+        f"file_tree (indented text):\n{file_tree_block}\n\n"
+        f"dependencies (parsed from manifests):\n{dependencies_block}"
+    )
+
+
+def _dependencies_to_grouped_text(dependencies: Any) -> str:
+    """평탄 dependencies(list[{manifest, name, version, scope}]) 를
+    manifest > scope > name@version 한 줄 표기로 그룹화한다.
+
+    JSON 키 (`"manifest":`, `"name":`, `"version":`, `"scope":`) 가 매 항목 반복되지
+    않아 동일 정보를 60-70% 적은 토큰으로 표현한다.
+    """
+
+    if not isinstance(dependencies, list) or not dependencies:
+        return "(no dependencies parsed)"
+
+    # manifest -> scope -> [name@version, ...]
+    grouped: dict[str, dict[str, list[str]]] = {}
+    for entry in dependencies:
+        if not isinstance(entry, dict):
+            continue
+        manifest = str(entry.get("manifest", "(unknown)")).strip() or "(unknown)"
+        scope = str(entry.get("scope", "")).strip() or "default"
+        name = str(entry.get("name", "")).strip()
+        if not name:
+            continue
+        version_raw = entry.get("version")
+        version = str(version_raw).strip() if version_raw not in (None, "") else ""
+        token = f"{name}{version}" if version.startswith(("<", ">", "=", "~", "!", "^")) else (
+            f"{name}@{version}" if version else name
+        )
+        grouped.setdefault(manifest, {}).setdefault(scope, []).append(token)
+
+    if not grouped:
+        return "(no dependencies parsed)"
+
+    lines: list[str] = []
+    for manifest in sorted(grouped):
+        lines.append(f"  {manifest}:")
+        scopes = grouped[manifest]
+        for scope in sorted(scopes):
+            tokens = scopes[scope]
+            lines.append(f"    {scope}: {', '.join(tokens)}")
+    return "\n".join(lines)
 
 
 def _file_tree_to_indented_text(file_tree: Any) -> str:

@@ -918,6 +918,27 @@ _DEPENDENCY_PARSERS: dict[str, Any] = {
 }
 
 
+def is_dependency_manifest(source_path: str) -> bool:
+    """주어진 path 가 _DEPENDENCY_PARSERS 등록 manifest 인지 판별.
+
+    structural_facts.dependencies 로 이미 parser 가 구조화 데이터를 추출했으므로
+    이 manifest 의 raw 본문을 LLM 입력으로 다시 보내는 것은 중복이다.
+    context_builder 의 representative chunks 후보에서 제외하는 데 사용한다.
+
+    대소문자 차이(예: 비표준 소문자 cargo.toml)도 흡수한다.
+    """
+
+    if not source_path:
+        return False
+    name = PurePosixPath(source_path).name
+    if not name:
+        return False
+    if name in _DEPENDENCY_PARSERS:
+        return True
+    lower_name = name.lower()
+    return any(key.lower() == lower_name for key in _DEPENDENCY_PARSERS)
+
+
 def _readme_outline(doc_artifacts: list[ProjectArtifactRow]) -> list[dict[str, Any]]:
     """codebase_overview 중 README 계열 파일의 markdown 헤더 트리를 뽑는다."""
     candidates: list[ProjectArtifactRow] = []

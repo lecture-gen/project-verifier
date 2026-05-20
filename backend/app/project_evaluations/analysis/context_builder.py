@@ -96,11 +96,18 @@ def _representative_snippets(
 def _select_representative_chunks(
     chunks: list[ChunkRecord], max_items: int
 ) -> list[ChunkRecord]:
+    # dependency manifest (pyproject.toml / package.json / requirements.txt 등) 의
+    # raw 본문은 structural_facts.dependencies 로 이미 parser 가 구조화 데이터를 추출했으므로
+    # LLM 입력에 또 보내지 않는다. (안전망: artifact 단계에서 한 번 거른 뒤 chunk 단계에서도 거른다.)
+    from app.project_evaluations.analysis.structural_extractor import is_dependency_manifest
+
     ranked = sorted(chunks, key=_chunk_priority)
     selected: list[ChunkRecord] = []
     role_counts: Counter[str] = Counter()
     path_counts: Counter[str] = Counter()
     for chunk in ranked:
+        if is_dependency_manifest(chunk.source_path):
+            continue
         if role_counts[chunk.artifact_role] >= 6 or path_counts[chunk.source_path] >= 3:
             continue
         selected.append(chunk)
@@ -152,11 +159,17 @@ def _format_context_chunk(chunk: ChunkRecord) -> str:
 def _select_representative_artifacts(
     artifacts: list[ProjectArtifactRow], max_items: int
 ) -> list[ProjectArtifactRow]:
+    # dependency manifest 는 structural_facts.dependencies 로 정형화되므로
+    # raw 본문을 LLM 입력 대표 청크 후보로 두지 않는다.
+    from app.project_evaluations.analysis.structural_extractor import is_dependency_manifest
+
     ranked = sorted(artifacts, key=_artifact_priority)
     selected: list[ProjectArtifactRow] = []
     role_counts: Counter[str] = Counter()
     area_counts: Counter[str] = Counter()
     for artifact in ranked:
+        if is_dependency_manifest(artifact.source_path):
+            continue
         role = _artifact_role(artifact)
         area = _area_name_for_path(artifact.source_path) or "project-docs"
         if role_counts[role] >= 5 or area_counts[area] >= 4:
@@ -170,6 +183,8 @@ def _select_representative_artifacts(
         seen = {artifact.id for artifact in selected}
         for artifact in ranked:
             if artifact.id in seen:
+                continue
+            if is_dependency_manifest(artifact.source_path):
                 continue
             selected.append(artifact)
             if len(selected) >= max_items:
