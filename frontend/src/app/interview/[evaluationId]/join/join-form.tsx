@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Form,
   FormControl,
@@ -57,7 +58,7 @@ export function JoinForm({ evaluationId }: JoinFormProps) {
         sessionId: session.id,
         sessionToken: session.session_token,
       });
-      toast.success("입장이 확인되었습니다. 검증를 시작합니다.");
+      toast.success("입장이 확인되었습니다. 평가를 시작합니다.");
       router.push(`/interview/${evaluationId}/session/${session.id}`);
     } catch (error) {
       const message =
@@ -73,13 +74,10 @@ export function JoinForm({ evaluationId }: JoinFormProps) {
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle className="font-serif text-3xl">검증 입장</CardTitle>
+        <CardTitle className="font-serif text-3xl">평가 입장</CardTitle>
         <p className="text-sm text-muted-foreground">
           관리자가 안내한 학생 입장 비밀번호와 사용할 이름을 입력하세요. 한 번 시작한
-          검증는 동일한 세션으로만 이어집니다.
-        </p>
-        <p className="font-mono text-xs text-muted-foreground">
-          평가 ID · {evaluationId}
+          평가는 동일한 세션으로만 이어집니다.
         </p>
       </CardHeader>
       <CardContent>
@@ -120,7 +118,7 @@ export function JoinForm({ evaluationId }: JoinFormProps) {
             />
             <div className="flex justify-end pt-2">
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "확인 중…" : "검증 시작"}
+                {mutation.isPending ? <Spinner /> : "평가 시작"}
               </Button>
             </div>
           </form>

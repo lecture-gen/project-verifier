@@ -127,7 +127,7 @@ export function ReportView({ report }: ReportViewProps) {
               각 문제의 채점 기준표 단위로 부여된 점수와 근거를 확인할 수 있습니다.
               {" "}
               <span className="text-muted-foreground/80">
-                "상세 보기"를 누르면 학생의 1차 답변과 꼬리질문 라운드를 펼쳐 볼 수 있습니다.
+                "상세 보기"를 누르면 학생 답변과 꼬리질문을 펼쳐 볼 수 있습니다.
               </span>
             </p>
           </CardHeader>
@@ -233,7 +233,7 @@ function QuestionEvaluationCard({ row }: { row: QuestionEvaluationRow }) {
               {row.student_answer.trim().length > 0 && (
                 <div>
                   <div className="mb-1 text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                    학생 1차 답변
+                    학생 답변
                   </div>
                   <p className="whitespace-pre-wrap leading-relaxed text-foreground">
                     {row.student_answer}
@@ -243,7 +243,7 @@ function QuestionEvaluationCard({ row }: { row: QuestionEvaluationRow }) {
               {row.follow_up_exchanges.length > 0 && (
                 <div className="space-y-2">
                   <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                    꼬리질문 라운드
+                    꼬리질문
                   </div>
                   <ul className="space-y-2">
                     {row.follow_up_exchanges.map((exchange) => (
@@ -252,7 +252,7 @@ function QuestionEvaluationCard({ row }: { row: QuestionEvaluationRow }) {
                         className="rounded border border-border/40 bg-background/60 p-2"
                       >
                         <div className="mb-1 font-mono text-[11px] text-muted-foreground">
-                          Round {exchange.round}
+                          꼬리질문 {exchange.round}
                         </div>
                         <p className="leading-relaxed text-foreground">
                           <span className="text-muted-foreground">Q. </span>

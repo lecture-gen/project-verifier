@@ -55,6 +55,8 @@ interface WizardContextValue extends WizardState {
   // 현재 활성 stage 의 advance 설정. shell 의 [다음 →] 버튼이 이 값을 사용한다.
   advance: AdvanceConfig | null;
   setAdvance: (config: AdvanceConfig | null) => void;
+  // 사용자가 이전 step 으로 돌아갔는지 판정. true 면 그 step 의 입력/액션을 잠가야 한다.
+  isStepReadonly: (step: WizardStep) => boolean;
 }
 
 const WizardContext = createContext<WizardContextValue | null>(null);
@@ -122,6 +124,11 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     setAdvanceState(config);
   }, []);
 
+  const isStepReadonly = useCallback(
+    (step: WizardStep) => state.highestCompletedStep > step,
+    [state.highestCompletedStep],
+  );
+
   const value = useMemo<WizardContextValue>(
     () => ({
       ...state,
@@ -131,8 +138,18 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       goToStep,
       advance,
       setAdvance,
+      isStepReadonly,
     }),
-    [state, advance, setEvaluation, setPolicyDraft, markStepCompleted, goToStep, setAdvance],
+    [
+      state,
+      advance,
+      setEvaluation,
+      setPolicyDraft,
+      markStepCompleted,
+      goToStep,
+      setAdvance,
+      isStepReadonly,
+    ],
   );
 
   return <WizardContext.Provider value={value}>{children}</WizardContext.Provider>;

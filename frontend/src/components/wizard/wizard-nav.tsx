@@ -7,6 +7,7 @@
 import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   useWizardState,
   WIZARD_STEP_TOTAL,
@@ -107,8 +108,14 @@ export function WizardNav() {
           onClick={handleNext}
           disabled={!canAdvance || busy}
         >
-          {nextLabel}
-          {!busy && !isLast && <span aria-hidden> →</span>}
+          {busy ? (
+            <Spinner />
+          ) : (
+            <>
+              {nextLabel}
+              {!isLast && <span aria-hidden> →</span>}
+            </>
+          )}
         </Button>
       </div>
     </div>

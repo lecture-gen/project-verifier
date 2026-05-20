@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
 
 export interface EndExamDialogProps {
   open: boolean;
@@ -49,7 +50,7 @@ export function EndExamDialog({
             onClick={onConfirm}
             disabled={isSubmitting}
           >
-            {isSubmitting ? "처리 중…" : "평가 종료"}
+            {isSubmitting ? <Spinner /> : "평가 종료"}
           </Button>
         </DialogFooter>
       </DialogContent>

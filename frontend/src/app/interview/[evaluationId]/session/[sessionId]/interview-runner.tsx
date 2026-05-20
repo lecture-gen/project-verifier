@@ -40,6 +40,13 @@ interface PendingFollowUp {
   reason: string;
 }
 
+// 답변 제출 직후 백엔드 응답이 도착하기 전까지 채팅창에 즉시 보여줄 낙관적 메시지.
+// userText 는 학생이 방금 보낸 답변, assistantMeta 는 보여줄 상태 라벨.
+interface OptimisticTurn {
+  userText: string;
+  assistantMeta: string;
+}
+
 function describeError(error: unknown, fallback: string): string {
   if (error instanceof ApiError) return error.message;
   if (error instanceof Error) return error.message;
@@ -197,6 +204,7 @@ export function InterviewRunner({
   const [pendingFollowUp, setPendingFollowUp] = useState<PendingFollowUp | null>(
     null,
   );
+  const [optimistic, setOptimistic] = useState<OptimisticTurn | null>(null);
   const [endDialogOpen, setEndDialogOpen] = useState(false);
 
   // 백엔드가 알려주는 다음 문제가 갱신되면, 사용자가 따로 선택하지 않은 상태에서만 자동 추종.
@@ -224,6 +232,7 @@ export function InterviewRunner({
     setAnswer("");
     setConversation(null);
     setPendingFollowUp(null);
+    setOptimistic(null);
   }, [selectedQuestionId]);
 
   const selectedQuestion = useMemo<InterviewQuestionRead | null>(() => {
@@ -243,8 +252,27 @@ export function InterviewRunner({
     if (readonly && selectedTurn) {
       return buildReadonlyMessages(selectedQuestion, selectedTurn);
     }
-    return buildActiveMessages(selectedQuestion, conversation);
-  }, [selectedQuestion, readonly, selectedTurn, conversation]);
+    const base = buildActiveMessages(selectedQuestion, conversation);
+    if (!optimistic) return base;
+    // 낙관적: 학생 답변을 곧장 추가하고, AI 응답 자리에 pending placeholder 를 둔다.
+    // 실제 응답이 도착하면 setOptimistic(null) 로 사라지고 base 흐름이 그 자리를 채운다.
+    return [
+      ...base,
+      {
+        key: `optimistic-user-${selectedQuestion.id}`,
+        role: "user",
+        meta: "답변",
+        text: optimistic.userText,
+      },
+      {
+        key: `optimistic-assistant-${selectedQuestion.id}`,
+        role: "assistant",
+        meta: optimistic.assistantMeta,
+        text: "",
+        pending: true,
+      },
+    ];
+  }, [selectedQuestion, readonly, selectedTurn, conversation, optimistic]);
 
   const submitting =
     submitMutation.isPending || completeMutation.isPending;
@@ -329,10 +357,21 @@ export function InterviewRunner({
             conversation_history: null,
           };
 
+    // 낙관적 UI: 전송 즉시 사용자 답변 + AI pending 말풍선 표시.
+    // 실패 시 catch 에서 원복하고 textarea 입력을 복원한다.
+    setOptimistic({
+      userText: trimmed,
+      assistantMeta: pendingFollowUp ? "응답 평가 중" : "꼬리질문 판단 중",
+    });
+    setAnswer("");
+
     try {
       const response = await submitMutation.mutateAsync(payload);
+      setOptimistic(null);
       handleResponse(response);
     } catch (error) {
+      setOptimistic(null);
+      setAnswer(trimmed);
       toast.error(describeError(error, "답변 제출에 실패했습니다."));
     }
   }, [

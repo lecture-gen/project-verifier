@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
+import { TtsButton } from "@/components/audio/tts-button";
 import { cn } from "@/lib/utils";
 
 export type ConversationRole = "assistant" | "user";
@@ -66,6 +67,7 @@ export function ConversationThread({
 
 function MessageBubble({ message }: { message: ConversationMessage }) {
   const isAssistant = message.role === "assistant";
+  const ttsReady = isAssistant && !message.pending && message.text.trim().length > 0;
   return (
     <div
       className={cn(
@@ -114,6 +116,11 @@ function MessageBubble({ message }: { message: ConversationMessage }) {
           >
             {message.subtext}
           </p>
+        )}
+        {ttsReady && (
+          <div className="mt-1 flex">
+            <TtsButton text={message.text} iconOnly />
+          </div>
         )}
       </div>
       {!isAssistant && <Avatar role={message.role} />}

@@ -6,7 +6,7 @@
 // 카드에 사유를 그대로 노출한다. silent fallback 금지.
 
 import { CheckCircle2, FileWarning, Loader2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api/client";
 import { useExtractContext, useUploadZipArtifact } from "@/lib/api/mutations";
-import { useExtractedContext } from "@/lib/api/queries";
+import { useArtifacts, useExtractedContext } from "@/lib/api/queries";
 import type {
   ArtifactUploadResult,
   ExtractedProjectContextRead,
@@ -49,13 +49,18 @@ function describeError(error: unknown, fallback: string): string {
 export interface ZipUploadPipelineProps {
   evaluationId: string;
   onAnalyzed?: () => void;
+  // 이전 step 에서 이미 자료 등록이 완료된 상태로 다시 들어왔을 때 입력을 차단한다.
+  readOnly?: boolean;
 }
 
 export function ZipUploadPipeline({
   evaluationId,
   onAnalyzed,
+  readOnly = false,
 }: ZipUploadPipelineProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  // 한 번 사용자가 직접 파일을 선택한 이후로는 server-state sync 가 stage 를 덮어쓰지 않도록 가드.
+  const userInteractedRef = useRef(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadResult, setUploadResult] = useState<ArtifactUploadResult | null>(
     null,
@@ -70,15 +75,45 @@ export function ZipUploadPipeline({
 
   const uploadMutation = useUploadZipArtifact(evaluationId);
   const extractMutation = useExtractContext(evaluationId);
+  // evaluationId 만으로 server-side 상태를 항상 조회한다. 다른 step 으로 갔다가
+  // 돌아왔을 때 자료/분석 결과를 복원하기 위함.
+  const artifactsQuery = useArtifacts(evaluationId, {
+    enabled: Boolean(evaluationId),
+  });
   const contextQuery = useExtractedContext(evaluationId, {
-    enabled: Boolean(uploadResult || extractMutation.isSuccess),
+    enabled: Boolean(evaluationId),
     retry: false,
   });
 
+  const artifacts = artifactsQuery.data ?? [];
   const context: ExtractedProjectContextRead | undefined =
     extractMutation.data ?? contextQuery.data;
 
+  // server-side 상태 → stage 복원. 사용자가 새 업로드를 시작한 후에는 건드리지 않는다.
+  useEffect(() => {
+    if (userInteractedRef.current) return;
+    if (artifacts.length > 0) {
+      setUploadStage((prev) =>
+        prev.status === "pending" ? { status: "done" } : prev,
+      );
+      setClassifyStage((prev) =>
+        prev.status === "pending" ? { status: "done" } : prev,
+      );
+    }
+  }, [artifacts.length]);
+
+  useEffect(() => {
+    if (userInteractedRef.current) return;
+    if (context) {
+      setAnalyzeStage((prev) =>
+        prev.status === "pending" ? { status: "done" } : prev,
+      );
+      onAnalyzed?.();
+    }
+  }, [context, onAnalyzed]);
+
   async function runPipeline(file: File) {
+    userInteractedRef.current = true;
     setSelectedFile(file);
     setUploadResult(null);
     setUploadStage({ status: "running" });
@@ -114,6 +149,11 @@ export function ZipUploadPipeline({
   }
 
   function pickFile(file: File | null) {
+    if (readOnly) {
+      // 이전 step 에서 이미 자료가 등록된 상태에서는 새 업로드를 받지 않는다.
+      toast.error("이전 단계에서 등록한 자료를 사용 중이라 새 zip 을 업로드할 수 없습니다.");
+      return;
+    }
     if (!file) return;
     if (!file.name.toLowerCase().endsWith(".zip")) {
       toast.error("zip 파일만 업로드할 수 있습니다.");
@@ -137,38 +177,53 @@ export function ZipUploadPipeline({
         <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           zip 자료 업로드
         </h3>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Input
-            ref={inputRef}
-            type="file"
-            accept=".zip,application/zip"
-            disabled={busy}
-            onChange={(event) => pickFile(event.target.files?.[0] ?? null)}
-            className="cursor-pointer"
-          />
-          {selectedFile && (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={busy}
-              onClick={() => {
-                if (inputRef.current) inputRef.current.value = "";
-                setSelectedFile(null);
-                setUploadResult(null);
-                setUploadStage({ status: "pending" });
-                setClassifyStage({ status: "pending" });
-                setAnalyzeStage({ status: "pending" });
-              }}
-            >
-              초기화
-            </Button>
-          )}
-        </div>
-        {selectedFile && (
-          <p className="text-sm text-muted-foreground">
-            선택된 파일: <span className="font-mono">{selectedFile.name}</span> ·{" "}
-            {(selectedFile.size / 1024 / 1024).toFixed(1)} MB
+        {readOnly ? (
+          <p className="rounded-md border border-dashed border-border/60 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+            이전 단계에서 등록한 자료를 그대로 사용합니다.
+            {artifacts.length > 0 && (
+              <span className="ml-1 font-medium text-foreground">
+                총 {artifacts.length}건
+              </span>
+            )}
+            자료를 바꾸려면 새 평가를 만들어야 합니다.
           </p>
+        ) : (
+          <>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Input
+                ref={inputRef}
+                type="file"
+                accept=".zip,application/zip"
+                disabled={busy}
+                onChange={(event) => pickFile(event.target.files?.[0] ?? null)}
+                className="cursor-pointer"
+              />
+              {selectedFile && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => {
+                    if (inputRef.current) inputRef.current.value = "";
+                    userInteractedRef.current = false;
+                    setSelectedFile(null);
+                    setUploadResult(null);
+                    setUploadStage({ status: "pending" });
+                    setClassifyStage({ status: "pending" });
+                    setAnalyzeStage({ status: "pending" });
+                  }}
+                >
+                  초기화
+                </Button>
+              )}
+            </div>
+            {selectedFile && (
+              <p className="text-sm text-muted-foreground">
+                선택된 파일: <span className="font-mono">{selectedFile.name}</span> ·{" "}
+                {(selectedFile.size / 1024 / 1024).toFixed(1)} MB
+              </p>
+            )}
+          </>
         )}
       </section>
 

@@ -1,7 +1,7 @@
 "use client";
 
 // 관리 콘솔. 평가자 비밀번호 게이트는 제거됨.
-// Tabs (개요/자료/질문/리포트). 평가 상세는 업로드 자료와 질문 본문 중심으로 보여준다.
+// Tabs (개요/자료/문항/리포트). 평가 상세는 업로드 자료와 문항 본문 중심으로 보여준다.
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -44,7 +44,7 @@ type AdminTab = (typeof TABS)[number];
 const TAB_LABEL: Record<AdminTab, string> = {
   overview: "개요",
   artifacts: "자료",
-  questions: "질문",
+  questions: "문항",
   report: "리포트",
 };
 
@@ -134,8 +134,8 @@ function OverviewTab({ evaluationId }: { evaluationId: string }) {
   const artifacts = artifactsQuery.data ?? [];
   const context = contextQuery.data;
 
-  // #5 정책: 차단 사유는 질문 단계까지 도달한 상황(질문이 1개 이상 저장됐거나
-  // 질문 생성이 한 번이라도 시도된 상태)에서만 노출한다. 관리 콘솔 초기 진입에는
+  // #5 정책: 차단 사유는 문항 단계까지 도달한 상황(문항이 1개 이상 저장됐거나
+  // 문항 생성이 한 번이라도 시도된 상태)에서만 노출한다. 관리 콘솔 초기 진입에는
   // 보여주지 않는다.
   const showBlockedReason = Boolean(
     status?.blocked_reason &&
@@ -155,7 +155,7 @@ function OverviewTab({ evaluationId }: { evaluationId: string }) {
             <>
               <MetaRow label="평가 명" value={evaluation.name} />
               <MetaRow
-                label="질문 정책"
+                label="문항 정책"
                 value={`총 ${evaluation.question_policy.total_question_count} 문항`}
               />
               <MetaRow
@@ -180,14 +180,14 @@ function OverviewTab({ evaluationId }: { evaluationId: string }) {
                 <Badge variant="secondary">{status.status}</Badge>
                 <Badge variant="outline">phase · {status.phase || "-"}</Badge>
                 <Badge variant="outline">
-                  질문 {status.question_count}/{status.expected_question_count}
+                  문항 {status.question_count}/{status.expected_question_count}
                 </Badge>
                 {status.has_artifacts && (
                   <Badge variant="outline">자료 업로드됨</Badge>
                 )}
                 {status.has_context && <Badge variant="outline">분석 완료</Badge>}
                 {status.questions_ready && (
-                  <Badge variant="outline">질문 준비</Badge>
+                  <Badge variant="outline">문항 준비</Badge>
                 )}
                 {status.can_join && <Badge variant="outline">학생 입장 가능</Badge>}
               </div>
@@ -414,19 +414,19 @@ function ArtifactRow({ artifact }: { artifact: ProjectArtifactRead }) {
   );
 }
 
-// ---------- 질문 탭 ----------
+// ---------- 문항 탭 ----------
 
 function QuestionsTab({ evaluationId }: { evaluationId: string }) {
   const questionsQuery = useAdminQuestions(evaluationId);
   const questions = questionsQuery.data ?? [];
 
   if (questionsQuery.isPending) {
-    return <p className="text-sm text-muted-foreground">질문을 불러오는 중…</p>;
+    return <p className="text-sm text-muted-foreground">문항을 불러오는 중…</p>;
   }
   if (questions.length === 0) {
     return (
       <p className="rounded-md border border-dashed border-border/60 px-4 py-10 text-center text-sm text-muted-foreground">
-        아직 생성된 질문이 없습니다. 마법사 4단계에서 생성하세요.
+        아직 생성된 문항이 없습니다. 마법사 4단계에서 생성하세요.
       </p>
     );
   }

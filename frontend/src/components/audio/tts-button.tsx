@@ -17,6 +17,8 @@ export interface TtsButtonProps {
   autoplay?: boolean;
   lang?: string;
   disabled?: boolean;
+  // 아이콘만 표시하고 라벨 텍스트를 숨긴다. 대화 말풍선처럼 좁은 공간에 사용.
+  iconOnly?: boolean;
 }
 
 // 브라우저 capability 는 변하지 않으므로 subscribe 는 no-op.
@@ -29,6 +31,7 @@ export function TtsButton({
   autoplay = false,
   lang = "ko-KR",
   disabled,
+  iconOnly = false,
 }: TtsButtonProps) {
   const [speaking, setSpeaking] = useState(false);
   const supported = useSyncExternalStore(
@@ -76,6 +79,23 @@ export function TtsButton({
       cancelSpeech();
     };
   }, [text, autoplay, supported, play]);
+
+  if (iconOnly) {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        onClick={speaking ? stop : play}
+        disabled={disabled || !supported || !text.trim()}
+        aria-pressed={speaking}
+        aria-label={speaking ? "음성 재생 중지" : "음성으로 듣기"}
+        className="h-7 w-7 rounded-full"
+      >
+        {speaking ? <VolumeX /> : <Volume2 />}
+      </Button>
+    );
+  }
 
   return (
     <Button

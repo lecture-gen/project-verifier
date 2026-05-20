@@ -46,6 +46,10 @@ export function ChatComposer({
 }: ChatComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const recognizerRef = useRef<SpeechRecognizer | null>(null);
+  // recognizer 의 onResult 콜백은 startListening 시점의 closure 를 잡는다.
+  // 사용자가 발화 도중 멈췄다 다시 말할 때 다음 final transcript 가 도착하면 콜백 안의
+  // value 가 stale 이라 직전 transcript 를 덮어쓰는 문제가 있었다. ref 로 최신값을 읽어 해결.
+  const valueRef = useRef(value);
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState("");
   const supported = useSyncExternalStore(
@@ -53,6 +57,10 @@ export function ChatComposer({
     () => isSpeechRecognitionSupported(),
     () => false,
   );
+
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
 
   // textarea 높이 자동 조절: 1줄 ~ 5줄.
   useEffect(() => {
@@ -92,7 +100,8 @@ export function ChatComposer({
         if (finalTranscript) {
           const trimmed = finalTranscript.trim();
           if (trimmed) {
-            onChange(value ? `${value} ${trimmed}`.trim() : trimmed);
+            const current = valueRef.current;
+            onChange(current ? `${current} ${trimmed}`.trim() : trimmed);
           }
           setInterim("");
           onInterimChange?.("");
@@ -119,7 +128,7 @@ export function ChatComposer({
           : "음성 인식을 시작할 수 없습니다.";
       toast.error(message);
     }
-  }, [supported, lang, onChange, value, onInterimChange]);
+  }, [supported, lang, onChange, onInterimChange]);
 
   const handleMicToggle = useCallback(() => {
     if (listening) stopListening();

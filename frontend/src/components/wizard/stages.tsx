@@ -28,6 +28,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
+import { Spinner } from "@/components/ui/spinner";
 import { WizardShell } from "@/components/wizard/wizard-shell";
 import { ApiError } from "@/lib/api/client";
 import {
@@ -67,8 +68,10 @@ const infoSchema = z.object({
 type InfoFormValues = z.infer<typeof infoSchema>;
 
 export function Stage1Info() {
-  const { info, setEvaluation, setAdvance } = useWizardState();
+  const { info, setEvaluation, setAdvance, markStepCompleted, isStepReadonly } =
+    useWizardState();
   const mutation = useCreateEvaluation();
+  const readonly = isStepReadonly(1);
 
   const form = useForm<InfoFormValues>({
     resolver: zodResolver(infoSchema),
@@ -96,16 +99,19 @@ export function Stage1Info() {
 
   // 우측 하단 [다음 →] 가 폼 submit 을 트리거하도록 advance 등록.
   // RHF 의 handleSubmit 은 validation 실패 시 자동으로 폼 에러를 노출한다.
+  // readonly 면 mutation 우회하고 단순 이동만.
   useEffect(() => {
     setAdvance({
-      onAdvance: form.handleSubmit(onSubmit),
-      canAdvance: !mutation.isPending,
-      busy: mutation.isPending,
-      label: mutation.isPending ? "방을 만드는 중…" : "다음 단계",
+      onAdvance: readonly
+        ? () => markStepCompleted(1)
+        : form.handleSubmit(onSubmit),
+      canAdvance: readonly || !mutation.isPending,
+      busy: !readonly && mutation.isPending,
+      label: "다음 단계",
     });
     return () => setAdvance(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mutation.isPending, setAdvance]);
+  }, [mutation.isPending, setAdvance, readonly, markStepCompleted]);
 
   return (
     <WizardShell step={1}>
@@ -122,7 +128,11 @@ export function Stage1Info() {
               <FormItem>
                 <FormLabel>평가 명</FormLabel>
                 <FormControl>
-                  <Input placeholder="예: 캡스톤 4조 프로젝트 수행 진위 검증" {...field} />
+                  <Input
+                    placeholder="예: 캡스톤 4조 프로젝트 수행 진위 검증"
+                    disabled={readonly}
+                    {...field}
+                  />
                 </FormControl>
                 <FormDescription>
                   하나의 평가를 만들면 여러 학생이 같은 입장 URL과 비밀번호로 들어와
@@ -139,13 +149,23 @@ export function Stage1Info() {
               <FormItem>
                 <FormLabel>학생 입장 비밀번호</FormLabel>
                 <FormControl>
-                  <Input type="password" autoComplete="off" {...field} />
+                  <Input
+                    type="password"
+                    autoComplete="off"
+                    disabled={readonly}
+                    {...field}
+                  />
                 </FormControl>
                 <FormDescription>4자 이상. 학생에게 안내합니다.</FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
+          {readonly && (
+            <p className="rounded-md border border-dashed border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+              평가가 이미 생성되어 이 단계의 정보는 변경할 수 없습니다.
+            </p>
+          )}
         </form>
       </Form>
     </WizardShell>
@@ -157,22 +177,29 @@ export function Stage1Info() {
 // =====================================================================
 
 export function Stage2Upload() {
-  const { evaluationId, markStepCompleted, setAdvance } = useWizardState();
-  // 분석이 끝나면 자동으로 다음 step 으로 넘어가지 않고, 사용자가 결과를 확인한 뒤
-  // 직접 [다음 →] 을 눌러야 진행되도록 로컬 플래그로 게이트한다.
+  const { evaluationId, markStepCompleted, setAdvance, isStepReadonly } =
+    useWizardState();
+  const readonly = isStepReadonly(2);
+  // 분석이 끝났는지 여부. 사용자가 이번 세션에서 새로 분석을 마쳤거나(setAnalyzed),
+  // 이전에 등록한 자료가 서버에 남아 있어 status.has_context = true 인 경우 모두 true 로 본다.
   const [analyzed, setAnalyzed] = useState(false);
+  const statusQuery = useEvaluationStatus(evaluationId, {
+    enabled: Boolean(evaluationId),
+  });
+  const serverAnalyzed = Boolean(statusQuery.data?.has_context);
+  const canAdvance = analyzed || serverAnalyzed;
 
   useEffect(() => {
     setAdvance({
       onAdvance: () => {
-        if (!analyzed) return;
+        if (!canAdvance) return;
         markStepCompleted(2);
       },
-      canAdvance: analyzed,
+      canAdvance,
       label: "다음 단계",
     });
     return () => setAdvance(null);
-  }, [analyzed, markStepCompleted, setAdvance]);
+  }, [canAdvance, markStepCompleted, setAdvance]);
 
   if (!evaluationId) {
     return (
@@ -203,6 +230,7 @@ export function Stage2Upload() {
       <ZipUploadPipeline
         evaluationId={evaluationId}
         onAnalyzed={() => setAnalyzed(true)}
+        readOnly={readonly}
       />
     </WizardShell>
   );
@@ -224,7 +252,9 @@ export function Stage3Policy() {
     setPolicyDraft,
     markStepCompleted,
     setAdvance,
+    isStepReadonly,
   } = useWizardState();
+  const readonly = isStepReadonly(3);
   const evaluationQuery = useEvaluation(evaluationId);
   const mutation = useUpdateQuestionPolicy(evaluationId ?? "");
 
@@ -278,14 +308,25 @@ export function Stage3Policy() {
 
   useEffect(() => {
     setAdvance({
-      onAdvance: onSubmit,
-      canAdvance: ratioSum > 0 && !mutation.isPending && Boolean(evaluationId),
-      busy: mutation.isPending,
-      label: mutation.isPending ? "저장 중…" : "다음 단계",
+      onAdvance: readonly ? () => markStepCompleted(3) : onSubmit,
+      canAdvance:
+        readonly ||
+        (ratioSum > 0 && !mutation.isPending && Boolean(evaluationId)),
+      busy: !readonly && mutation.isPending,
+      label: "다음 단계",
     });
     return () => setAdvance(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ratioSum, mutation.isPending, evaluationId, total, ratios, setAdvance]);
+  }, [
+    ratioSum,
+    mutation.isPending,
+    evaluationId,
+    total,
+    ratios,
+    setAdvance,
+    readonly,
+    markStepCompleted,
+  ]);
 
   return (
     <WizardShell step={3}>
@@ -313,6 +354,7 @@ export function Stage3Policy() {
             min={TOTAL_MIN}
             max={TOTAL_MAX}
             step={1}
+            disabled={readonly}
             onValueChange={(values) => setTotal(values[0] ?? TOTAL_MIN)}
           />
         </CardContent>
@@ -346,6 +388,7 @@ export function Stage3Policy() {
                   min={RATIO_MIN}
                   max={RATIO_MAX}
                   step={1}
+                  disabled={readonly}
                   onValueChange={(values) => updateRatio(level, values[0] ?? 0)}
                 />
               </div>
@@ -369,8 +412,9 @@ export function Stage3Policy() {
 // =====================================================================
 
 export function Stage4Questions() {
-  const { evaluationId, markStepCompleted, setAdvance } = useWizardState();
-  const [hasAttemptedGeneration, setHasAttemptedGeneration] = useState(false);
+  const { evaluationId, markStepCompleted, setAdvance, isStepReadonly } =
+    useWizardState();
+  const readonly = isStepReadonly(4);
 
   const statusQuery = useEvaluationStatus(evaluationId, {
     enabled: Boolean(evaluationId),
@@ -391,19 +435,21 @@ export function Stage4Questions() {
   const canGenerate = Boolean(status?.can_generate_questions);
   const hasQuestions = questions.length > 0;
 
-  const showBlockedReason = Boolean(
-    status?.blocked_reason &&
-      !generateMutation.isPending &&
-      (hasAttemptedGeneration || hasQuestions),
-  );
-
   async function onGenerate() {
-    setHasAttemptedGeneration(true);
+    if (!canGenerate) {
+      const reason = status?.blocked_reason;
+      toast.error(
+        reason
+          ? `문항을 생성할 수 없습니다: ${reason}`
+          : "문항을 생성할 수 없습니다. 이전 단계가 완료되었는지 확인해주세요.",
+      );
+      return;
+    }
     try {
       await generateMutation.mutateAsync();
-      toast.success("자료 근거 기반으로 질문을 생성했습니다.");
+      toast.success("자료 근거 기반으로 문항을 생성했습니다.");
     } catch (error) {
-      toast.error(describeError(error, "질문 생성에 실패했습니다."));
+      toast.error(describeError(error, "문항 생성에 실패했습니다."));
     }
   }
 
@@ -411,89 +457,48 @@ export function Stage4Questions() {
     setAdvance({
       onAdvance: () => {
         if (!hasQuestions) {
-          toast.error("질문이 1개 이상 저장된 후에 다음 단계로 갈 수 있습니다.");
+          toast.error("문항이 1개 이상 저장된 후에 다음 단계로 갈 수 있습니다.");
           return;
         }
         markStepCompleted(4);
       },
       canAdvance: hasQuestions && !generateMutation.isPending,
       busy: generateMutation.isPending,
-      label: generateMutation.isPending ? "질문 생성 중…" : "다음 단계",
+      label: "다음 단계",
     });
     return () => setAdvance(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasQuestions, generateMutation.isPending, setAdvance]);
 
+  const showGenerateButton = !readonly && !hasQuestions;
+
   return (
     <WizardShell step={4}>
       <div className="space-y-2 text-sm text-muted-foreground">
         <p>
-          앞서 정의한 정책으로 자료 근거 기반 질문을 생성합니다. 각 질문은 출제 의도,
+          앞서 정의한 정책으로 자료 근거 기반 문항을 생성합니다. 각 문항은 출제 의도,
           기대 답안, 채점 기준표, 근거 출처를 함께 갖고 있습니다.
         </p>
-        <p>정책을 다시 바꾸고 싶다면 이전 단계로 돌아가세요. 재생성은 정책 변경 후 다시 실행됩니다.</p>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">상태</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          {status ? (
-            <>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">phase · {status.phase || "-"}</Badge>
-                <Badge variant="outline">status · {status.status || "-"}</Badge>
-                <Badge variant="outline">
-                  질문 {status.question_count} / {status.expected_question_count}
-                </Badge>
-                {status.has_context ? (
-                  <Badge variant="secondary">context 준비</Badge>
-                ) : (
-                  <Badge variant="outline">context 미준비</Badge>
-                )}
-              </div>
-              {status.user_message && (
-                <p className="text-muted-foreground">{status.user_message}</p>
-              )}
-              {showBlockedReason && (
-                <p className="text-destructive">차단 사유: {status.blocked_reason}</p>
-              )}
-            </>
-          ) : (
-            <p className="text-muted-foreground">상태를 불러오는 중…</p>
-          )}
-          <div className="flex flex-wrap gap-3 pt-2">
-            <Button
-              type="button"
-              onClick={onGenerate}
-              disabled={!canGenerate || generateMutation.isPending}
-            >
-              {generateMutation.isPending
-                ? "질문 생성 중…"
-                : hasQuestions
-                  ? "질문 재생성"
-                  : "질문 생성"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                statusQuery.refetch();
-                questionsQuery.refetch();
-              }}
-            >
-              상태 새로고침
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {showGenerateButton && (
+        <div>
+          <Button
+            type="button"
+            size="lg"
+            onClick={onGenerate}
+            disabled={generateMutation.isPending}
+          >
+            {generateMutation.isPending ? <Spinner /> : "문항 생성"}
+          </Button>
+        </div>
+      )}
 
-      {questions.length > 0 ? (
+      {hasQuestions ? (
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              생성된 질문 ({questions.length})
+              생성된 문항 ({questions.length})
             </h3>
             <span className="rounded-md border border-border/60 px-2 py-1 text-xs text-muted-foreground">
               최종 리포트에서 점수는 100점으로 정규화됩니다.
@@ -507,11 +512,11 @@ export function Stage4Questions() {
             ))}
           </ol>
         </section>
-      ) : (
+      ) : readonly ? (
         <p className="rounded-md border border-dashed border-border/60 bg-muted/40 px-4 py-6 text-center text-sm text-muted-foreground">
-          아직 생성된 질문이 없습니다. context 분석이 끝나면 위에서 질문을 생성하세요.
+          이전 단계에서 생성된 문항이 표시됩니다.
         </p>
-      )}
+      ) : null}
     </WizardShell>
   );
 }

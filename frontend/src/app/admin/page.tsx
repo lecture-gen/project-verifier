@@ -16,7 +16,7 @@ const STATUS_LABEL: Record<EvaluationStatus, string> = {
   created: "평가 생성",
   uploaded: "자료 업로드",
   analyzed: "분석 완료",
-  questions_generated: "질문 생성",
+  questions_generated: "문항 생성",
   interviewing: "검증 중",
   reported: "리포트 완료",
 };
@@ -35,7 +35,7 @@ export default function AdminListPage() {
             관리 콘솔
           </h1>
           <p className="mt-3 max-w-xl text-sm text-muted-foreground">
-            카드 클릭 시 해당 평가의 자료·질문·학생별 리포트를 볼 수 있는 콘솔로 이동합니다.
+            카드 클릭 시 해당 평가의 자료·문항·학생별 리포트를 볼 수 있는 콘솔로 이동합니다.
           </p>
         </div>
         <Button asChild>
@@ -94,7 +94,7 @@ function EvaluationCard({
         <CardHeader className="space-y-2">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <Badge variant="secondary">{statusLabel}</Badge>
-            <Badge variant="outline">질문 {evaluation.question_count}</Badge>
+            <Badge variant="outline">문항 {evaluation.question_count}</Badge>
           </div>
           <CardTitle className="text-lg leading-snug">
             {evaluation.name || "(이름 없음)"}
