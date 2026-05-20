@@ -1060,28 +1060,72 @@ def build_context_prompt(
 
 
 def _format_structural_facts(facts: dict[str, Any]) -> str:
-    """LLM 입력용으로 structural_facts를 길이 제한된 JSON 텍스트로 직렬화한다.
+    """LLM 입력용으로 structural_facts를 길이 제한된 텍스트로 직렬화한다.
 
-    file_tree와 dependencies가 거대한 경우를 대비해 상한을 둔다. 상한을 넘으면
-    truncation_note를 같이 적어 LLM이 그 사실을 알 수 있게 한다.
+    file_tree는 평탄 JSON 대신 들여쓰기 텍스트 트리로 변환한다 (옵션 1-A).
+    path prefix 가 반복되지 않아 동일 정보를 40-50% 적은 토큰으로 표현한다.
+    dependencies 는 그대로 JSON 직렬화하되 상한을 둔다.
     """
     if not facts:
         return "(structural facts not available)"
     truncated = dict(facts)
     notes: list[str] = []
+
     file_tree = truncated.get("file_tree")
-    if isinstance(file_tree, list) and len(file_tree) > 200:
-        truncated["file_tree"] = file_tree[:200]
-        notes.append(f"file_tree truncated to first 200 of {len(file_tree)} entries")
+    original_tree_len = len(file_tree) if isinstance(file_tree, list) else 0
+    if isinstance(file_tree, list) and original_tree_len > 200:
+        file_tree = file_tree[:200]
+        notes.append(
+            f"file_tree truncated to first 200 of {original_tree_len} entries"
+        )
+    # file_tree 자체는 LLM 직렬화 단계에서만 텍스트 트리로 치환한다.
+    # 원본 structural_facts (DB/UI 도메인 모델 소비자) 에는 영향을 주지 않는다.
+    file_tree_block = _file_tree_to_indented_text(file_tree)
+    truncated.pop("file_tree", None)
+
     dependencies = truncated.get("dependencies")
     if isinstance(dependencies, list) and len(dependencies) > 120:
         truncated["dependencies"] = dependencies[:120]
         notes.append(f"dependencies truncated to first 120 of {len(dependencies)} entries")
     if notes:
         truncated["_truncation_notes"] = notes
+
     import json as _json
 
-    return _json.dumps(truncated, ensure_ascii=False, indent=2)
+    other_block = _json.dumps(truncated, ensure_ascii=False, indent=2)
+    return f"{other_block}\n\nfile_tree (indented text):\n{file_tree_block}"
+
+
+def _file_tree_to_indented_text(file_tree: Any) -> str:
+    """평탄 file_tree(list[{path, kind, depth}]) 를 들여쓰기 텍스트 트리로 변환.
+
+    structural_extractor 가 이미 모든 디렉터리 노드와 파일 노드를 평탄 entry 로
+    포함시켜 두므로, 각 entry 의 path 깊이만큼 들여쓰기해서 마지막 segment 만 출력하면
+    트리 모양이 그대로 재구성된다. 같은 디렉터리 prefix 가 토큰에 반복되지 않아
+    LLM 입력 토큰이 감소한다.
+    """
+
+    if not isinstance(file_tree, list) or not file_tree:
+        return "(file_tree empty)"
+    sorted_entries = sorted(
+        (entry for entry in file_tree if isinstance(entry, dict)),
+        key=lambda e: str(e.get("path", "")),
+    )
+    lines: list[str] = []
+    for entry in sorted_entries:
+        path = str(entry.get("path", "")).strip()
+        if not path:
+            continue
+        kind = str(entry.get("kind", "")).strip().lower()
+        parts = [p for p in path.split("/") if p]
+        if not parts:
+            continue
+        indent = "  " * (len(parts) - 1)
+        leaf = parts[-1] + ("/" if kind == "dir" else "")
+        lines.append(f"{indent}{leaf}")
+    if not lines:
+        return "(file_tree empty)"
+    return "\n".join(lines)
 
 
 def build_questions_prompt(
