@@ -26,9 +26,17 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import { WizardShell } from "@/components/wizard/wizard-shell";
 import { ApiError } from "@/lib/api/client";
 import {
@@ -45,8 +53,11 @@ import type { BloomLevel, InterviewQuestionRead } from "@/lib/api/endpoints";
 import {
   BLOOM_LEVELS,
   BLOOM_LEVEL_META,
+  BLOOM_PRESETS,
+  BLOOM_PRESET_OPTIONS,
   calculateBloomDistribution,
   defaultBloomRatios,
+  findMatchingPreset,
 } from "@/lib/wizard/bloom";
 import { useWizardState } from "@/lib/wizard/state";
 
@@ -60,12 +71,65 @@ function describeError(error: unknown, fallback: string): string {
 // Stage 1 — 방 정보
 // =====================================================================
 
-const infoSchema = z.object({
-  name: z.string().trim().min(1, "평가 명을 입력하세요."),
-  room_password: z.string().min(4, "학생 입장 비밀번호는 4자 이상으로 정해주세요."),
-});
+const PROJECT_CATEGORY_OPTIONS = [
+  { value: "weekly", label: "주간 과제" },
+  { value: "midterm", label: "중간 과제" },
+  { value: "final", label: "기말 과제" },
+  { value: "capstone_final", label: "최종 과제" },
+] as const;
+
+const infoSchema = z
+  .object({
+    name: z.string().trim().min(1, "평가 명을 입력하세요."),
+    evaluation_period_start: z.string(),
+    evaluation_period_end: z.string(),
+    expected_participant_count: z
+      .number()
+      .int("정수만 입력해 주세요.")
+      .min(1, "1명 이상으로 입력해 주세요.")
+      .max(500, "500명 이하로 입력해 주세요.")
+      .nullable(),
+    project_category: z.enum(["weekly", "midterm", "final", "capstone_final"]),
+    focus_points: z
+      .string()
+      .max(2000, "중점사항은 2000자 이하로 작성해 주세요."),
+  })
+  .refine(
+    (value) => {
+      if (!value.evaluation_period_start || !value.evaluation_period_end) {
+        return true;
+      }
+      return value.evaluation_period_start <= value.evaluation_period_end;
+    },
+    {
+      path: ["evaluation_period_end"],
+      message: "종료일은 시작일과 같거나 이후여야 합니다.",
+    },
+  );
 
 type InfoFormValues = z.infer<typeof infoSchema>;
+
+function toIsoOrNull(dateStr: string): string | null {
+  if (!dateStr) return null;
+  // <input type="date"> 값은 "YYYY-MM-DD". KST 자정으로 해석해 UTC ISO 로 변환한다.
+  const local = new Date(`${dateStr}T00:00:00+09:00`);
+  if (Number.isNaN(local.getTime())) return null;
+  return local.toISOString();
+}
+
+function isoToDateInput(value: string | null | undefined): string {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  // 사용자에게는 KST 기준 날짜를 보여준다.
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return fmt.format(d);
+}
 
 export function Stage1Info() {
   const { info, setEvaluation, setAdvance, markStepCompleted, isStepReadonly } =
@@ -77,7 +141,11 @@ export function Stage1Info() {
     resolver: zodResolver(infoSchema),
     defaultValues: {
       name: info?.name ?? "",
-      room_password: info?.room_password ?? "",
+      evaluation_period_start: "",
+      evaluation_period_end: "",
+      expected_participant_count: null,
+      project_category: info?.project_category ?? "weekly",
+      focus_points: info?.focus_points ?? "",
     },
   });
 
@@ -85,11 +153,16 @@ export function Stage1Info() {
     try {
       const created = await mutation.mutateAsync({
         name: values.name,
-        room_password: values.room_password,
+        evaluation_period_start: toIsoOrNull(values.evaluation_period_start ?? ""),
+        evaluation_period_end: toIsoOrNull(values.evaluation_period_end ?? ""),
+        expected_participant_count: values.expected_participant_count,
+        project_category: values.project_category,
+        focus_points: values.focus_points ?? "",
       });
       setEvaluation(created.id, {
         name: created.name,
-        room_password: values.room_password,
+        project_category: created.project_category,
+        focus_points: created.focus_points ?? "",
       });
       toast.success(`평가를 만들었습니다.`);
     } catch (error) {
@@ -135,28 +208,132 @@ export function Stage1Info() {
                   />
                 </FormControl>
                 <FormDescription>
-                  하나의 평가를 만들면 여러 학생이 같은 입장 URL과 비밀번호로 들어와
-                  각자 검증을 받습니다. 리포트는 학생별로 나뉘어 확인할 수 있습니다.
+                  하나의 평가를 만들면 여러 학생이 같은 입장 URL로 들어와 각자
+                  검증을 받습니다. 리포트는 학생별로 나뉘어 확인할 수 있습니다.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="evaluation_period_start"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>평가 기간 (시작)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="date"
+                      disabled={readonly}
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="evaluation_period_end"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>평가 기간 (종료)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="date"
+                      disabled={readonly}
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="expected_participant_count"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>예상 학생 수</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={500}
+                      placeholder="예: 4"
+                      disabled={readonly}
+                      value={field.value ?? ""}
+                      onChange={(event) => {
+                        const raw = event.target.value;
+                        field.onChange(raw === "" ? null : Number(raw));
+                      }}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    이 프로젝트를 함께 수행한 인원. 품질 평가의 baseline 으로 사용됩니다.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="project_category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>프로젝트 분류</FormLabel>
+                  <FormControl>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={readonly}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="프로젝트 분류를 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PROJECT_CATEGORY_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormDescription>
+                    3단계 비율 프리셋이 이 분류를 따라 자동으로 적용됩니다.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
           <FormField
             control={form.control}
-            name="room_password"
+            name="focus_points"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>학생 입장 비밀번호</FormLabel>
+                <FormLabel>이 평가에서 중요시할 점</FormLabel>
                 <FormControl>
-                  <Input
-                    type="password"
-                    autoComplete="off"
+                  <Textarea
+                    rows={4}
+                    placeholder="예: RAG 인덱싱 설계와 검색 품질을 핵심으로 봅니다. 단순한 CRUD 구현보다 의사결정 근거를 우선합니다."
                     disabled={readonly}
-                    {...field}
+                    value={field.value ?? ""}
+                    onChange={field.onChange}
                   />
                 </FormControl>
-                <FormDescription>4자 이상. 학생에게 안내합니다.</FormDescription>
+                <FormDescription>
+                  프로젝트 품질 평가와 질문 생성 시 가중치 키워드로 사용됩니다.
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -248,6 +425,7 @@ const RATIO_MAX = 10;
 export function Stage3Policy() {
   const {
     evaluationId,
+    info,
     policyDraft,
     setPolicyDraft,
     markStepCompleted,
@@ -267,11 +445,26 @@ export function Stage3Policy() {
         bloom_ratios: { ...defaultBloomRatios(), ...(existing.bloom_ratios ?? {}) },
       };
     }
-    return { total_question_count: 6, bloom_ratios: defaultBloomRatios() };
-  }, [evaluationQuery.data, policyDraft]);
+    const presetKey = info?.project_category ?? "weekly";
+    const preset = BLOOM_PRESETS[presetKey];
+    return {
+      total_question_count: preset.total,
+      bloom_ratios: { ...preset.ratios },
+    };
+  }, [evaluationQuery.data, policyDraft, info?.project_category]);
 
   const [total, setTotal] = useState<number>(initial.total_question_count);
   const [ratios, setRatios] = useState<Record<string, number>>(initial.bloom_ratios);
+  const matchedPreset = useMemo(
+    () => findMatchingPreset(total, ratios),
+    [total, ratios],
+  );
+
+  function applyPreset(key: "weekly" | "midterm" | "final" | "capstone_final") {
+    const preset = BLOOM_PRESETS[key];
+    setTotal(preset.total);
+    setRatios({ ...preset.ratios });
+  }
 
   const distribution = useMemo(
     () => calculateBloomDistribution(total, ratios),
@@ -337,6 +530,45 @@ export function Stage3Policy() {
         </p>
         <p>동률 잔여 문항은 기억 → 이해 → 적용 → 분석 → 평가 → 창안 순으로 배정됩니다.</p>
       </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">프리셋</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <Select
+              value={matchedPreset ?? "custom"}
+              onValueChange={(value) => {
+                if (value !== "custom") {
+                  applyPreset(
+                    value as "weekly" | "midterm" | "final" | "capstone_final",
+                  );
+                }
+              }}
+              disabled={readonly}
+            >
+              <SelectTrigger className="sm:max-w-xs">
+                <SelectValue placeholder="프리셋 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                {BLOOM_PRESET_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+                <SelectItem value="custom" disabled>
+                  커스텀 (슬라이더 수동 조정)
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              1단계에서 선택한 분류가 기본 프리셋으로 적용됩니다. 슬라이더로 값을
+              조정하면 자동으로 &quot;커스텀&quot; 으로 표시됩니다.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-3">
@@ -624,9 +856,7 @@ function subscribeNoop(): () => void {
 
 export function Stage5Summary() {
   const router = useRouter();
-  const { evaluationId, info, setAdvance } = useWizardState();
-  const evaluationQuery = useEvaluation(evaluationId);
-  const questionsQuery = useAdminQuestions(evaluationId);
+  const { evaluationId, setAdvance } = useWizardState();
 
   const origin = useSyncExternalStore(
     subscribeNoop,
@@ -639,10 +869,6 @@ export function Stage5Summary() {
     const base = origin || "";
     return `${base}/interview/${evaluationId}/join`;
   }, [evaluationId, origin]);
-
-  const evaluation = evaluationQuery.data;
-  const questions = questionsQuery.data ?? [];
-  const policy = evaluation?.question_policy;
 
   async function copy(value: string, label: string) {
     if (!value) return;
@@ -672,55 +898,11 @@ export function Stage5Summary() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base">학생 공유 정보</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           <SharedField
             label="학생 입장 URL"
             value={studentUrl}
             onCopy={() => copy(studentUrl, "학생 입장 URL")}
-          />
-          <SharedField
-            label="평가 ID"
-            value={evaluationId ?? ""}
-            onCopy={() => copy(evaluationId ?? "", "평가 ID")}
-          />
-          <SharedField
-            label="학생 입장 비밀번호"
-            value={info?.room_password ?? ""}
-            onCopy={() => copy(info?.room_password ?? "", "학생 입장 비밀번호")}
-            placeholder="(브라우저 메모리에서만 보관 — 1단계에서 입력한 값)"
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">평가 요약</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <SummaryRow
-            label="평가 명"
-            value={evaluation?.name || info?.name}
-          />
-          <Separator />
-          <div>
-            <div className="mb-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-              질문 정책
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">
-                총 {policy?.total_question_count ?? "-"} 문항
-              </Badge>
-              {policy?.bloom_distribution &&
-                Object.entries(policy.bloom_distribution).map(([level, count]) => (
-                  <Badge key={level} variant="secondary">
-                    {level} · {count}
-                  </Badge>
-                ))}
-            </div>
-          </div>
-          <SummaryRow
-            label="생성된 질문 수"
-            value={String(questions.length)}
           />
         </CardContent>
       </Card>

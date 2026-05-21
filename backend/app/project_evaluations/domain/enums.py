@@ -49,6 +49,28 @@ class FinalDecision(StrEnum):
     LOW_CONFIDENCE = "신뢰 낮음"
 
 
+class ProjectCategory(StrEnum):
+    WEEKLY = "weekly"
+    MIDTERM = "midterm"
+    FINAL = "final"
+    CAPSTONE_FINAL = "capstone_final"
+
+
+PROJECT_CATEGORY_KO_LABEL: dict[str, str] = {
+    ProjectCategory.WEEKLY.value: "주간 과제",
+    ProjectCategory.MIDTERM.value: "중간 과제",
+    ProjectCategory.FINAL.value: "기말 과제",
+    ProjectCategory.CAPSTONE_FINAL.value: "최종 과제",
+}
+
+
+class QualitativeGrade(StrEnum):
+    EXCELLENT = "excellent"
+    GOOD = "good"
+    MEDIOCRE = "mediocre"
+    POOR = "poor"
+
+
 class BloomLevel(StrEnum):
     REMEMBER = "기억"
     UNDERSTAND = "이해"

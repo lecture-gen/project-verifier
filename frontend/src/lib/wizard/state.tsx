@@ -16,10 +16,18 @@ import {
 export const WIZARD_STEP_TOTAL = 5;
 export type WizardStep = 1 | 2 | 3 | 4 | 5;
 
+export type ProjectCategory =
+  | "weekly"
+  | "midterm"
+  | "final"
+  | "capstone_final";
+
 export interface WizardInfoDraft {
   name: string;
-  // 학생 입장 비밀번호. 5단계 요약에서 보여주기 위해 보관한다.
-  room_password: string;
+  // Stage 3 비율 프리셋 자동 적용에 사용. Stage 1 에서 선택한 분류.
+  project_category: ProjectCategory;
+  // 운영자가 강조하고 싶은 평가 포인트 (예: "RAG 인덱싱과 검색 품질").
+  focus_points: string;
 }
 
 export interface WizardPolicyDraft {

@@ -32,6 +32,7 @@ from app.project_evaluations.domain.models import (
     ScoringRubricItem,
     SourceReference,
 )
+from app.project_evaluations.domain.quality import ProjectQualityAssessmentRead
 from app.project_evaluations.persistence.models import (
     EvaluationReportRow,
     ExtractedProjectContextRow,
@@ -41,6 +42,7 @@ from app.project_evaluations.persistence.models import (
     ProjectAreaRow,
     ProjectArtifactRow,
     ProjectEvaluationRow,
+    ProjectQualityAssessmentRow,
     RubricScoreRow,
     utc_now,
 )
@@ -91,14 +93,17 @@ class ProjectEvaluationRepository:
     def create_evaluation(
         self,
         payload: ProjectEvaluationCreate,
-        room_password_hash: str = "",
     ) -> ProjectEvaluationRead:
         row = ProjectEvaluationRow(
             id=new_id(),
             name=payload.name,
-            room_password_hash=room_password_hash,
             question_policy_json=to_json(payload.question_policy.model_dump()),
             status=EvaluationStatus.CREATED.value,
+            evaluation_period_start=payload.evaluation_period_start,
+            evaluation_period_end=payload.evaluation_period_end,
+            expected_participant_count=payload.expected_participant_count,
+            project_category=payload.project_category.value,
+            focus_points=payload.focus_points,
         )
         self.session.add(row)
         self.session.commit()
@@ -144,6 +149,7 @@ class ProjectEvaluationRepository:
                 id=row.id,
                 name=row.name,
                 status=EvaluationStatus(row.status),
+                project_category=row.project_category,
                 question_count=question_count_by_evaluation.get(row.id, 0),
                 created_at=row.created_at,
                 updated_at=row.updated_at,
@@ -318,6 +324,82 @@ class ProjectEvaluationRepository:
         for area_row in area_rows:
             self.session.refresh(area_row)
         return self.to_context_read(row, area_rows)
+
+    def save_quality_assessment(
+        self,
+        evaluation_id: str,
+        qualitative_grade: str,
+        quantitative_score: float,
+        workload_baseline: str,
+        summary: str,
+        strengths: list[str],
+        concerns: list[str],
+        rationale: str,
+        evidence_refs: list[str],
+        model_name: str,
+    ) -> ProjectQualityAssessmentRead:
+        existing = self.session.scalar(
+            select(ProjectQualityAssessmentRow).where(
+                ProjectQualityAssessmentRow.evaluation_id == evaluation_id
+            )
+        )
+        row = existing or ProjectQualityAssessmentRow(
+            id=new_id(), evaluation_id=evaluation_id
+        )
+        row.qualitative_grade = qualitative_grade
+        row.quantitative_score = quantitative_score
+        row.workload_baseline = workload_baseline
+        row.summary = summary
+        row.strengths_json = to_json(strengths)
+        row.concerns_json = to_json(concerns)
+        row.rationale = rationale
+        row.evidence_refs_json = to_json(evidence_refs)
+        row.model_name = model_name
+        if existing is None:
+            self.session.add(row)
+        self.session.commit()
+        self.session.refresh(row)
+        return self.to_quality_assessment_read(row)
+
+    def get_quality_assessment(
+        self, evaluation_id: str
+    ) -> ProjectQualityAssessmentRead | None:
+        row = self.session.scalar(
+            select(ProjectQualityAssessmentRow).where(
+                ProjectQualityAssessmentRow.evaluation_id == evaluation_id
+            )
+        )
+        if row is None:
+            return None
+        return self.to_quality_assessment_read(row)
+
+    def has_quality_assessment(self, evaluation_id: str) -> bool:
+        return (
+            self.session.scalar(
+                select(ProjectQualityAssessmentRow.id)
+                .where(ProjectQualityAssessmentRow.evaluation_id == evaluation_id)
+                .limit(1)
+            )
+            is not None
+        )
+
+    def to_quality_assessment_read(
+        self, row: ProjectQualityAssessmentRow
+    ) -> ProjectQualityAssessmentRead:
+        return ProjectQualityAssessmentRead(
+            id=row.id,
+            evaluation_id=row.evaluation_id,
+            qualitative_grade=row.qualitative_grade,
+            quantitative_score=row.quantitative_score,
+            workload_baseline=row.workload_baseline or "",
+            summary=row.summary or "",
+            strengths=from_json(row.strengths_json, []),
+            concerns=from_json(row.concerns_json, []),
+            rationale=row.rationale or "",
+            evidence_refs=from_json(row.evidence_refs_json, []),
+            model_name=row.model_name or "",
+            created_at=row.created_at,
+        )
 
     def get_context_row(
         self, evaluation_id: str
@@ -726,6 +808,11 @@ class ProjectEvaluationRepository:
             name=row.name,
             status=EvaluationStatus(row.status),
             question_policy=QuestionGenerationPolicy(**from_json(row.question_policy_json, {})),
+            evaluation_period_start=row.evaluation_period_start,
+            evaluation_period_end=row.evaluation_period_end,
+            expected_participant_count=row.expected_participant_count,
+            project_category=row.project_category,
+            focus_points=row.focus_points or "",
             created_at=row.created_at,
             updated_at=row.updated_at,
         )

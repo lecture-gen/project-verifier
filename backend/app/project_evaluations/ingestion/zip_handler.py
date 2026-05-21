@@ -42,6 +42,14 @@ async def extract_zip_artifacts(
         )
 
     content = await upload.read()
+    return extract_zip_bytes(evaluation_id, content, settings)
+
+
+def extract_zip_bytes(
+    evaluation_id: str,
+    content: bytes,
+    settings: ApiSettings,
+) -> list[ExtractedArtifact]:
     max_upload_bytes = settings.APP_MAX_UPLOAD_MB * 1024 * 1024
     if len(content) > max_upload_bytes:
         raise HTTPException(

@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import logging
+import re
 from collections import Counter
 from collections.abc import Callable
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
+
+import httpx
+
+_logger = logging.getLogger(__name__)
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.exc import IntegrityError
@@ -16,12 +22,13 @@ from app.core.security import (
     hash_password as _hash_password,
     new_session_token as _new_session_token,
     verify_password as _verify_password,
-)  # type: ignore[F401]  # admin_password 제거 이후 _hash_password/_verify_password는 room password에서만 사용
+)
 from app.project_evaluations.analysis.context_builder import (
     build_project_context,
 )
 from app.project_evaluations.analysis.llm_client import LlmClient
 from app.project_evaluations.analysis.prompts import build_project_context_brief
+from app.project_evaluations.analysis.quality_assessor import run_quality_assessment
 from app.project_evaluations.domain.models import (
     ArtifactStatus,
     ArtifactUploadResult,
@@ -39,6 +46,7 @@ from app.project_evaluations.domain.models import (
     ProjectEvaluationRead,
     ProjectEvaluationStatusRead,
     ProjectEvaluationSummaryRead,
+    ProjectQualityAssessmentRead,
     QuestionExchange,
     QuestionGenerationPolicy,
 )
@@ -48,6 +56,7 @@ from app.project_evaluations.ingestion.file_classifier import (
 )
 from app.project_evaluations.ingestion.zip_handler import (
     extract_zip_artifacts,
+    extract_zip_bytes,
 )
 from app.project_evaluations.interview.evaluator import (
     conversation_history_text,
@@ -67,6 +76,165 @@ from app.project_evaluations.reports.report_generator import (
 from app.settings import ApiSettings
 
 _ABORT_UNANSWERED_TEXT = "(미응답)"
+
+_GITHUB_REPO_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def _parse_github_repo_url(github_url: str) -> tuple[str, str]:
+    """`https://github.com/{owner}/{repo}` 형태에서 (owner, repo) 추출.
+
+    `.git` suffix, trailing slash 모두 정리하고 owner/repo 만 허용한다. 그 외 경로(/tree/main 등)는 거부.
+    """
+
+    raw = (github_url or "").strip()
+    if not raw:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "stage": "github_import",
+                "reason": "empty_url",
+                "message": "GitHub 저장소 URL이 비어 있습니다.",
+            },
+        )
+    parsed = urlparse(raw)
+    if parsed.scheme not in ("http", "https") or parsed.netloc.lower() != "github.com":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "stage": "github_import",
+                "reason": "invalid_host",
+                "message": "https://github.com/{owner}/{repo} 형식의 URL만 허용합니다.",
+                "url": raw,
+            },
+        )
+    path_segments = [segment for segment in parsed.path.split("/") if segment]
+    if len(path_segments) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "stage": "github_import",
+                "reason": "missing_owner_or_repo",
+                "message": "URL 에 owner/repo 가 모두 포함되어야 합니다.",
+                "url": raw,
+            },
+        )
+    owner, repo = path_segments[0], path_segments[1]
+    if repo.endswith(".git"):
+        repo = repo[: -len(".git")]
+    if not _GITHUB_REPO_RE.match(owner) or not _GITHUB_REPO_RE.match(repo):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "stage": "github_import",
+                "reason": "invalid_owner_or_repo",
+                "message": "owner/repo 이름이 유효하지 않습니다.",
+                "url": raw,
+            },
+        )
+    return owner, repo
+
+
+def _download_github_zip(
+    owner: str,
+    repo: str,
+    *,
+    max_bytes: int,
+    timeout_seconds: float = 30.0,
+) -> tuple[bytes, str]:
+    """public repo 의 기본 브랜치 zip 을 받아 bytes 로 반환.
+
+    1) GET https://api.github.com/repos/{owner}/{repo} 로 default_branch 조회.
+    2) GET https://codeload.github.com/{owner}/{repo}/zip/refs/heads/{branch} 로 zip 받음.
+    응답 Content-Type 이 application/zip 이 아니거나 max_bytes 초과면 raise.
+    """
+
+    headers = {
+        "User-Agent": "v2-project-evaluation/0.1 (+github-import)",
+        "Accept": "application/vnd.github+json",
+    }
+    with httpx.Client(timeout=timeout_seconds, follow_redirects=True) as client:
+        meta_resp = client.get(
+            f"https://api.github.com/repos/{owner}/{repo}",
+            headers=headers,
+        )
+        if meta_resp.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "stage": "github_import",
+                    "reason": "repo_metadata_failed",
+                    "message": "GitHub 저장소 메타데이터를 가져오지 못했습니다.",
+                    "owner": owner,
+                    "repo": repo,
+                    "github_status": meta_resp.status_code,
+                },
+            )
+        meta = meta_resp.json()
+        if not isinstance(meta, dict) or "default_branch" not in meta:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail={
+                    "stage": "github_import",
+                    "reason": "default_branch_missing",
+                    "message": "GitHub 응답에서 default_branch 를 찾을 수 없습니다.",
+                    "owner": owner,
+                    "repo": repo,
+                },
+            )
+        default_branch = str(meta["default_branch"])
+
+        zip_url = (
+            f"https://codeload.github.com/{owner}/{repo}/zip/refs/heads/{quote(default_branch, safe='')}"
+        )
+        chunks: list[bytes] = []
+        total = 0
+        with client.stream("GET", zip_url, headers=headers) as response:
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={
+                        "stage": "github_import",
+                        "reason": "codeload_failed",
+                        "message": "codeload 에서 zip 을 받지 못했습니다.",
+                        "owner": owner,
+                        "repo": repo,
+                        "branch": default_branch,
+                        "github_status": response.status_code,
+                    },
+                )
+            content_type = response.headers.get("Content-Type", "").lower()
+            if "application/zip" not in content_type and "application/x-zip" not in content_type:
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail={
+                        "stage": "github_import",
+                        "reason": "unexpected_content_type",
+                        "message": "codeload 응답이 zip 이 아닙니다.",
+                        "owner": owner,
+                        "repo": repo,
+                        "branch": default_branch,
+                        "content_type": content_type,
+                    },
+                )
+            for chunk in response.iter_bytes(chunk_size=1024 * 1024):
+                total += len(chunk)
+                if total > max_bytes:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail={
+                            "stage": "github_import",
+                            "reason": "zip_too_large",
+                            "message": "다운로드한 저장소 zip 이 허용 크기를 초과했습니다.",
+                            "owner": owner,
+                            "repo": repo,
+                            "branch": default_branch,
+                            "max_bytes": max_bytes,
+                            "actual_bytes": total,
+                        },
+                    )
+                chunks.append(chunk)
+        return b"".join(chunks), f"{owner}-{repo}-{default_branch}.zip"
+
 
 
 def _safe_error_message(exc: Exception, prefix: str) -> str:
@@ -119,20 +287,12 @@ class ProjectEvaluationService:
     def create_evaluation(
         self, payload: ProjectEvaluationCreate
     ) -> ProjectEvaluationRead:
-        if not payload.room_password.strip():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="방 비밀번호를 입력하세요.",
-            )
         if sum(payload.question_policy.bloom_ratios.values()) == 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Bloom 비율은 하나 이상 1 이상이어야 합니다.",
             )
-        return self.repository.create_evaluation(
-            payload,
-            room_password_hash=_hash_password(payload.room_password),
-        )
+        return self.repository.create_evaluation(payload)
 
     def list_evaluation_summaries(self) -> list[ProjectEvaluationSummaryRead]:
         return self.repository.list_evaluation_summaries()
@@ -191,7 +351,7 @@ class ProjectEvaluationService:
         rag_status = from_json(context_row.rag_status_json, {}) if context_row else {}
         if has_context and not rag_status and not self.settings.RAG_ENABLED:
             rag_status = {"enabled": False, "reason": "rag_disabled"}
-        return self._status_from_rows(
+        result = self._status_from_rows(
             evaluation_id=evaluation.id,
             status_value=evaluation.status.value,
             has_artifacts=has_artifacts,
@@ -200,6 +360,13 @@ class ProjectEvaluationService:
             question_count=len(question_rows),
             expected_question_count=question_policy.total_question_count,
             has_sessions=self.repository.has_sessions(evaluation_id),
+        )
+        return result.model_copy(
+            update={
+                "has_quality_assessment": self.repository.has_quality_assessment(
+                    evaluation_id
+                ),
+            }
         )
 
     def _status_from_rows(
@@ -333,13 +500,37 @@ class ProjectEvaluationService:
     async def upload_zip(
         self, evaluation_id: str, upload: UploadFile
     ) -> ArtifactUploadResult:
+        self._ensure_no_artifacts(evaluation_id)
+        extracted = await extract_zip_artifacts(evaluation_id, upload, self.settings)
+        return self._ingest_extracted_artifacts(evaluation_id, extracted)
+
+    def upload_github_repo(
+        self, evaluation_id: str, github_url: str
+    ) -> ArtifactUploadResult:
+        self._ensure_no_artifacts(evaluation_id)
+        owner, repo = _parse_github_repo_url(github_url)
+        zip_bytes, _filename = _download_github_zip(
+            owner,
+            repo,
+            max_bytes=self.settings.APP_MAX_UPLOAD_MB * 1024 * 1024,
+        )
+        extracted = extract_zip_bytes(evaluation_id, zip_bytes, self.settings)
+        del zip_bytes
+        return self._ingest_extracted_artifacts(evaluation_id, extracted)
+
+    def _ensure_no_artifacts(self, evaluation_id: str) -> None:
         self.get_evaluation(evaluation_id)
         if self.repository.has_artifacts(evaluation_id):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="이미 업로드된 자료가 있는 평가는 다시 업로드할 수 없습니다.",
             )
-        extracted = await extract_zip_artifacts(evaluation_id, upload, self.settings)
+
+    def _ingest_extracted_artifacts(
+        self,
+        evaluation_id: str,
+        extracted: list,
+    ) -> ArtifactUploadResult:
         artifacts = [
             self.repository.create_artifact(
                 evaluation_id=evaluation_id,
@@ -433,7 +624,92 @@ class ProjectEvaluationService:
         self.repository.update_evaluation_status(
             evaluation_id, EvaluationStatus.ANALYZED
         )
+        # extract 직후 품질 평가 자동 실행. 실패해도 saved context 는 보존하고,
+        # status 응답이 has_quality_assessment=False 로 노출되어 운영자가 수동 재시도 가능.
+        # 실패는 logger.exception 으로 명시적으로 기록 (silent fallback 금지).
+        try:
+            self.assess_project_quality(evaluation_id, context_read=saved)
+        except HTTPException as exc:
+            _logger.warning(
+                "quality_assessment_failed_after_extract evaluation_id=%s detail=%s",
+                evaluation_id,
+                exc.detail,
+            )
+        except Exception:
+            _logger.exception(
+                "quality_assessment_unexpected_error evaluation_id=%s",
+                evaluation_id,
+            )
         return saved
+
+    def assess_project_quality(
+        self,
+        evaluation_id: str,
+        *,
+        context_read: ExtractedProjectContextRead | None = None,
+    ) -> ProjectQualityAssessmentRead:
+        evaluation = self.get_evaluation(evaluation_id)
+        context = context_read or self.repository.get_context(evaluation_id)
+        if context is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "stage": "quality_assessment",
+                    "reason": "context_missing",
+                    "message": "프로젝트 분석이 끝난 뒤에만 품질 평가를 실행할 수 있습니다.",
+                },
+            )
+        try:
+            parsed = run_quality_assessment(
+                self._analysis_llm,
+                name=evaluation.name,
+                project_category=evaluation.project_category.value,
+                period_start=evaluation.evaluation_period_start,
+                period_end=evaluation.evaluation_period_end,
+                expected_participant_count=evaluation.expected_participant_count,
+                focus_points=evaluation.focus_points or "",
+                structural_facts=dict(context.structural_facts or {}),
+                extracted_context=context.model_dump(mode="json"),
+                cache_key=f"quality:{evaluation_id}",
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=_stage_error_detail(
+                    "quality_assessment",
+                    "프로젝트 품질 평가 실패: LLM 응답 처리 중 오류가 발생했습니다.",
+                    exc,
+                    llm_model=self.settings.OPENAI_ANALYSIS_MODEL,
+                ),
+            ) from exc
+        return self.repository.save_quality_assessment(
+            evaluation_id=evaluation_id,
+            qualitative_grade=parsed.qualitative_grade,
+            quantitative_score=parsed.quantitative_score,
+            workload_baseline=parsed.workload_baseline,
+            summary=parsed.summary,
+            strengths=list(parsed.strengths),
+            concerns=list(parsed.concerns),
+            rationale=parsed.rationale,
+            evidence_refs=list(parsed.evidence_refs),
+            model_name=self.settings.OPENAI_ANALYSIS_MODEL,
+        )
+
+    def get_quality_assessment(
+        self, evaluation_id: str
+    ) -> ProjectQualityAssessmentRead:
+        self.get_evaluation(evaluation_id)
+        existing = self.repository.get_quality_assessment(evaluation_id)
+        if existing is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={
+                    "stage": "quality_assessment",
+                    "reason": "not_yet_available",
+                    "message": "프로젝트 품질 평가가 아직 준비되지 않았습니다.",
+                },
+            )
+        return existing
 
     def _build_rag_status(self, evaluation_id: str, artifacts: list) -> dict[str, object]:
         if not self.settings.RAG_ENABLED:
@@ -647,7 +923,6 @@ class ProjectEvaluationService:
         self,
         evaluation_id: str,
         participant_name: str,
-        room_password: str,
         client_id: str = "local",
     ) -> JoinEvaluationRead:
         row = self.repository.get_evaluation_row(evaluation_id)
@@ -656,16 +931,6 @@ class ProjectEvaluationService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="프로젝트 평가를 찾을 수 없습니다.",
             )
-        _check_auth_attempt("room", evaluation_id, client_id)
-        if not row.room_password_hash or not _verify_password(
-            room_password, row.room_password_hash
-        ):
-            _record_auth_failure("room", evaluation_id, client_id)
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="방 비밀번호가 올바르지 않습니다.",
-            )
-        _clear_auth_failures("room", evaluation_id, client_id)
         self._ensure_questions_ready_for_join(evaluation_id)
         session = self._create_session(evaluation_id, participant_name.strip())
         evaluation = self.get_evaluation(evaluation_id)

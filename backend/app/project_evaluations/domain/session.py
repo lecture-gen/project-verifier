@@ -21,7 +21,6 @@ class InterviewSessionRead(BaseModel):
 
 class JoinEvaluationRequest(BaseModel):
     participant_name: str = Field(min_length=1, max_length=200)
-    room_password: str = Field(min_length=1, max_length=200, repr=False)
 
 
 class JoinEvaluationRead(BaseModel):

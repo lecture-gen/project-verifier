@@ -30,6 +30,7 @@ from app.project_evaluations.domain.models import (
     ProjectEvaluationRead,
     ProjectEvaluationStatusRead,
     ProjectEvaluationSummaryRead,
+    ProjectQualityAssessmentRead,
     QuestionPolicyUpdate,
     StudentInterviewStateRead,
 )
@@ -150,7 +151,7 @@ def join_evaluation(
     request_client_id: Annotated[str, Depends(client_id)],
 ) -> JoinEvaluationRead:
     return service.join_evaluation(
-        evaluation_id, payload.participant_name, payload.room_password, request_client_id
+        evaluation_id, payload.participant_name, request_client_id
     )
 
 
@@ -161,6 +162,43 @@ async def upload_zip_artifact(
     file: UploadFile = File(...),
 ) -> ArtifactUploadResult:
     return await service.upload_zip(evaluation_id, file)
+
+
+class GithubRepoImportRequest(BaseModel):
+    github_url: str = Field(min_length=1, max_length=512)
+
+
+@router.post(
+    "/{evaluation_id}/artifacts/github", response_model=ArtifactUploadResult
+)
+def import_github_repo_artifact(
+    evaluation_id: str,
+    payload: GithubRepoImportRequest,
+    service: Annotated[ProjectEvaluationService, Depends(get_service)],
+) -> ArtifactUploadResult:
+    return service.upload_github_repo(evaluation_id, payload.github_url)
+
+
+@router.post(
+    "/{evaluation_id}/quality-assessment",
+    response_model=ProjectQualityAssessmentRead,
+)
+def run_quality_assessment_endpoint(
+    evaluation_id: str,
+    service: Annotated[ProjectEvaluationService, Depends(get_service)],
+) -> ProjectQualityAssessmentRead:
+    return service.assess_project_quality(evaluation_id)
+
+
+@router.get(
+    "/{evaluation_id}/quality-assessment",
+    response_model=ProjectQualityAssessmentRead,
+)
+def get_quality_assessment_endpoint(
+    evaluation_id: str,
+    service: Annotated[ProjectEvaluationService, Depends(get_service)],
+) -> ProjectQualityAssessmentRead:
+    return service.get_quality_assessment(evaluation_id)
 
 
 @router.get("/{evaluation_id}/artifacts", response_model=list[ProjectArtifactRead])

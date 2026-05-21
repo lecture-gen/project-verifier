@@ -23,12 +23,12 @@ import type {
 } from "@/lib/api/endpoints";
 import { AreasGrid } from "@/components/wizard/context/AreasGrid";
 import { ArchitectureCanvas } from "@/components/wizard/context/ArchitectureCanvas";
-import { DependencyList } from "@/components/wizard/context/DependencyList";
 import { FileTreeView } from "@/components/wizard/context/FileTreeView";
-import { ReadmeOutlineList } from "@/components/wizard/context/ReadmeOutlineList";
 import { StructuralFactsPanel } from "@/components/wizard/context/StructuralFactsPanel";
 import { StudentRisksCards } from "@/components/wizard/context/StudentRisksCards";
 import { TechStackTable } from "@/components/wizard/context/TechStackTable";
+import { GithubUrlImport } from "@/components/wizard/github-url-import";
+import { QualityAssessmentCard } from "@/components/wizard/quality-assessment-card";
 import { cn } from "@/lib/utils";
 
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
@@ -72,6 +72,7 @@ export function ZipUploadPipeline({
   const [analyzeStage, setAnalyzeStage] = useState<StageState>({
     status: "pending",
   });
+  const [analysisOpen, setAnalysisOpen] = useState(false);
 
   const uploadMutation = useUploadZipArtifact(evaluationId);
   const extractMutation = useExtractContext(evaluationId);
@@ -133,8 +134,10 @@ export function ZipUploadPipeline({
     setUploadStage({ status: "done" });
     setUploadResult(uploaded);
     setClassifyStage({ status: "done" });
+    await runAnalysis();
+  }
 
-    // ── 분석 ──
+  async function runAnalysis() {
     setAnalyzeStage({ status: "running" });
     try {
       await extractMutation.mutateAsync();
@@ -146,6 +149,15 @@ export function ZipUploadPipeline({
       setAnalyzeStage({ status: "failed", error: message });
       toast.error(message);
     }
+  }
+
+  async function handleGithubImported(result: ArtifactUploadResult) {
+    userInteractedRef.current = true;
+    setSelectedFile(null);
+    setUploadResult(result);
+    setUploadStage({ status: "done" });
+    setClassifyStage({ status: "done" });
+    await runAnalysis();
   }
 
   function pickFile(file: File | null) {
@@ -170,6 +182,9 @@ export function ZipUploadPipeline({
     uploadStage.status === "running" ||
     classifyStage.status === "running" ||
     analyzeStage.status === "running";
+
+  const structuralFileTree = context?.structural_facts?.file_tree ?? [];
+  const hasFileTree = structuralFileTree.length > 0;
 
   return (
     <div className="space-y-5">
@@ -227,6 +242,29 @@ export function ZipUploadPipeline({
         )}
       </section>
 
+      {!readOnly && (
+        <GithubUrlImport
+          evaluationId={evaluationId}
+          disabled={busy}
+          onImported={handleGithubImported}
+        />
+      )}
+
+      {/* 파일 트리는 분석이 끝나는 즉시 최상위에서 보여준다. (요구사항 2.3) */}
+      {hasFileTree && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">파일 트리</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              업로드한 자료의 디렉터리 구조입니다.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <FileTreeView tree={structuralFileTree} />
+          </CardContent>
+        </Card>
+      )}
+
       <PipelineStageCard
         title="1. 업로드"
         description="zip 파일을 서버로 전송합니다."
@@ -235,6 +273,11 @@ export function ZipUploadPipeline({
         {uploadStage.status === "done" && selectedFile && (
           <p className="text-xs text-muted-foreground">
             {(selectedFile.size / 1024 / 1024).toFixed(1)} MB 전송 완료
+          </p>
+        )}
+        {uploadStage.status === "done" && !selectedFile && uploadResult && (
+          <p className="text-xs text-muted-foreground">
+            GitHub 저장소로부터 자료를 수신했습니다.
           </p>
         )}
       </PipelineStageCard>
@@ -256,8 +299,27 @@ export function ZipUploadPipeline({
         description="LLM 으로 프로젝트 요약·기술 스택·기능·아키텍처·리스크를 추출합니다."
         stage={analyzeStage}
       >
-        {context ? <ContextSummary context={context} /> : <AnalyzeSkeleton />}
+        {context ? (
+          <div className="space-y-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setAnalysisOpen((value) => !value)}
+            >
+              {analysisOpen ? "분석 결과 접기" : "분석 결과 자세히 보기"}
+            </Button>
+            {analysisOpen && <ContextSummary context={context} />}
+          </div>
+        ) : (
+          <AnalyzeSkeleton />
+        )}
       </PipelineStageCard>
+
+      <QualityAssessmentCard
+        evaluationId={evaluationId}
+        contextReady={Boolean(context)}
+      />
     </div>
   );
 }
@@ -435,25 +497,6 @@ function ContextSummary({ context }: { context: ExtractedProjectContextRead }) {
       <Section title="구조 통계">
         <StructuralFactsPanel facts={context.structural_facts} />
       </Section>
-
-      <details className="rounded border border-border/60">
-        <summary className="cursor-pointer px-3 py-2 text-sm font-medium">
-          파일 트리 · 의존성 · README 헤더 보기
-        </summary>
-        <div className="space-y-5 border-t border-border/60 px-3 py-3">
-          <Section title="파일 트리" small>
-            <FileTreeView tree={context.structural_facts?.file_tree ?? []} />
-          </Section>
-          <Section title="의존성 목록" small>
-            <DependencyList items={context.structural_facts?.dependencies ?? []} />
-          </Section>
-          <Section title="README 헤더" small>
-            <ReadmeOutlineList
-              entries={context.structural_facts?.readme_outline ?? []}
-            />
-          </Section>
-        </div>
-      </details>
     </div>
   );
 }

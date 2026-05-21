@@ -17,9 +17,21 @@ class ProjectEvaluationRow(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
-    room_password_hash: Mapped[str] = mapped_column(Text, nullable=False, default="")
     question_policy_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
     status: Mapped[str] = mapped_column(String(40), nullable=False, default="created")
+    evaluation_period_start: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    evaluation_period_end: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    expected_participant_count: Mapped[int | None] = mapped_column(
+        Integer, nullable=True
+    )
+    project_category: Mapped[str] = mapped_column(
+        String(40), nullable=False, default="weekly"
+    )
+    focus_points: Mapped[str] = mapped_column(Text, nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now
     )
@@ -63,6 +75,27 @@ class ExtractedProjectContextRow(Base):
         Text, nullable=False, default="[]"
     )
     rag_status_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now
+    )
+
+
+class ProjectQualityAssessmentRow(Base):
+    __tablename__ = "project_quality_assessments"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    evaluation_id: Mapped[str] = mapped_column(
+        ForeignKey("project_evaluations.id"), unique=True, index=True, nullable=False
+    )
+    qualitative_grade: Mapped[str] = mapped_column(String(40), nullable=False)
+    quantitative_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    workload_baseline: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    strengths_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    concerns_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    rationale: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    evidence_refs_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    model_name: Mapped[str] = mapped_column(String(80), nullable=False, default="")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utc_now
     )

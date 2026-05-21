@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 
 import { ReportView } from "@/components/report/report-view";
+import { formatKstDateTime } from "@/lib/format/datetime";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -160,7 +161,7 @@ function OverviewTab({ evaluationId }: { evaluationId: string }) {
               />
               <MetaRow
                 label="생성 / 갱신"
-                value={`${new Date(evaluation.created_at).toLocaleString("ko-KR")} · ${new Date(evaluation.updated_at).toLocaleString("ko-KR")}`}
+                value={`${formatKstDateTime(evaluation.created_at)} · ${formatKstDateTime(evaluation.updated_at)}`}
               />
             </>
           ) : (
@@ -652,7 +653,7 @@ function ReportTab({ evaluationId }: { evaluationId: string }) {
                 {selectedSession.participant_name || "(이름 미입력)"} 의 리포트
               </CardTitle>
               <p className="text-xs text-muted-foreground">
-                완료 {new Date(selectedReport.created_at).toLocaleString("ko-KR")}
+                완료 {formatKstDateTime(selectedReport.created_at)}
               </p>
             </CardHeader>
           </Card>
@@ -674,7 +675,7 @@ function ParticipantSelectorButton({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const completedAt = new Date(report.created_at).toLocaleString("ko-KR");
+  const completedAt = formatKstDateTime(report.created_at);
   return (
     <button
       type="button"

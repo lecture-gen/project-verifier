@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import type { EvaluationReportRead } from "@/lib/api/endpoints";
+import { formatKstDateTime } from "@/lib/format/datetime";
 
 import { BloomRadar } from "./bloom-radar";
 import {
@@ -43,7 +44,7 @@ export function ReportView({ report }: ReportViewProps) {
               score={(report.authenticity_score ?? 0) / 100}
             />
             <Badge variant="outline">
-              {new Date(report.created_at).toLocaleString("ko-KR")}
+              {formatKstDateTime(report.created_at)}
             </Badge>
           </div>
           <CardTitle className="font-serif text-2xl leading-tight">

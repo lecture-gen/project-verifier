@@ -59,6 +59,7 @@ from app.project_evaluations.domain.interview import (
     InterviewTurnRead,
     StudentInterviewStateRead,
 )
+from app.project_evaluations.domain.quality import ProjectQualityAssessmentRead
 from app.project_evaluations.domain.question import (
     InterviewQuestionRead,
     ScoringRubricItem,
@@ -106,6 +107,7 @@ __all__ = [
     "ProjectEvaluationRead",
     "ProjectEvaluationStatusRead",
     "ProjectEvaluationSummaryRead",
+    "ProjectQualityAssessmentRead",
     "QuestionExchange",
     "QuestionGenerationPolicy",
     "QuestionPolicyUpdate",

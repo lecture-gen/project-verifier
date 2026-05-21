@@ -10,12 +10,15 @@ import {
   createSession,
   extractContext,
   generateQuestions,
+  importGithubRepoArtifact,
   joinEvaluation,
+  runQualityAssessment,
   submitInterviewAnswer,
   submitTurn,
   updateQuestionPolicy,
   uploadZipArtifact,
   type ArtifactUploadResult,
+  type ProjectQualityAssessmentRead,
   type EvaluationReportRead,
   type ExtractedProjectContextRead,
   type InterviewQuestionRead,
@@ -59,6 +62,31 @@ export function useUploadZipArtifact(evaluationId: string) {
     mutationFn: ({ file, signal }) => uploadZipArtifact(evaluationId, file, signal),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: evaluationKeys.artifacts(evaluationId) });
+      qc.invalidateQueries({ queryKey: evaluationKeys.status(evaluationId) });
+    },
+  });
+}
+
+export function useImportGithubRepoArtifact(evaluationId: string) {
+  const qc = useQueryClient();
+  return useMutation<ArtifactUploadResult, Error, { githubUrl: string }>({
+    mutationFn: ({ githubUrl }) =>
+      importGithubRepoArtifact(evaluationId, githubUrl),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: evaluationKeys.artifacts(evaluationId) });
+      qc.invalidateQueries({ queryKey: evaluationKeys.status(evaluationId) });
+    },
+  });
+}
+
+export function useRunQualityAssessment(evaluationId: string) {
+  const qc = useQueryClient();
+  return useMutation<ProjectQualityAssessmentRead, Error, void>({
+    mutationFn: () => runQualityAssessment(evaluationId),
+    onSuccess: () => {
+      qc.invalidateQueries({
+        queryKey: evaluationKeys.qualityAssessment(evaluationId),
+      });
       qc.invalidateQueries({ queryKey: evaluationKeys.status(evaluationId) });
     },
   });

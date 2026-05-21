@@ -25,12 +25,21 @@ export type {
 type Schemas = components["schemas"];
 
 // 평가 명 통합 정책으로 백엔드 DTO 가 단일 `name` 으로 정리됐다. OpenAPI 재생성 전까지
-// types.gen.ts 가 옛 필드(project_name/room_name/candidate_name)를 들고 있을 수 있으므로
-// 아래 3종은 수기로 새 형태를 선언한다.
+// types.gen.ts 가 옛 필드를 들고 있을 수 있으므로 아래 타입들은 수기로 새 형태를 선언한다.
+export type ProjectCategory =
+  | "weekly"
+  | "midterm"
+  | "final"
+  | "capstone_final";
+
 export interface ProjectEvaluationCreate {
   name: string;
-  room_password?: string;
   question_policy?: Schemas["QuestionGenerationPolicy"];
+  evaluation_period_start?: string | null;
+  evaluation_period_end?: string | null;
+  expected_participant_count?: number | null;
+  project_category?: ProjectCategory;
+  focus_points?: string;
 }
 
 export interface ProjectEvaluationRead {
@@ -38,6 +47,11 @@ export interface ProjectEvaluationRead {
   name: string;
   status: Schemas["EvaluationStatus"];
   question_policy: Schemas["QuestionGenerationPolicy"];
+  evaluation_period_start: string | null;
+  evaluation_period_end: string | null;
+  expected_participant_count: number | null;
+  project_category: ProjectCategory;
+  focus_points: string;
   created_at: string;
   updated_at: string;
 }
@@ -46,16 +60,52 @@ export interface ProjectEvaluationSummaryRead {
   id: string;
   name: string;
   status: Schemas["EvaluationStatus"];
+  project_category: ProjectCategory;
   question_count: number;
   created_at: string;
   updated_at: string;
 }
 
-export type ProjectEvaluationStatusRead = Schemas["ProjectEvaluationStatusRead"];
+export interface ProjectEvaluationStatusReadEx {
+  evaluation_id: string;
+  status: string;
+  phase: string;
+  has_artifacts: boolean;
+  has_context: boolean;
+  has_quality_assessment: boolean;
+  rag_status: Record<string, unknown>;
+  question_count: number;
+  expected_question_count: number;
+  questions_ready: boolean;
+  can_generate_questions: boolean;
+  can_join: boolean;
+  blocked_reason: string;
+  user_message: string;
+  check_targets: string[];
+  retryable: boolean;
+}
+export type ProjectEvaluationStatusRead = ProjectEvaluationStatusReadEx;
 export type EvaluationStatus = Schemas["EvaluationStatus"];
 
-export type JoinEvaluationRequest = Schemas["JoinEvaluationRequest"];
+export interface JoinEvaluationRequest {
+  participant_name: string;
+}
 export type JoinEvaluationRead = Schemas["JoinEvaluationRead"];
+
+export interface ProjectQualityAssessmentRead {
+  id: string;
+  evaluation_id: string;
+  qualitative_grade: "excellent" | "good" | "mediocre" | "poor";
+  quantitative_score: number;
+  workload_baseline: string;
+  summary: string;
+  strengths: string[];
+  concerns: string[];
+  rationale: string;
+  evidence_refs: string[];
+  model_name: string;
+  created_at: string;
+}
 
 export type ArtifactUploadResult = Schemas["ArtifactUploadResult"];
 export type ProjectArtifactRead = Schemas["ProjectArtifactRead"];
@@ -153,10 +203,40 @@ export function uploadZipArtifact(
   });
 }
 
+export function importGithubRepoArtifact(
+  evaluationId: string,
+  githubUrl: string,
+): Promise<ArtifactUploadResult> {
+  return apiFetch<ArtifactUploadResult>(
+    `${BASE}/${evaluationId}/artifacts/github`,
+    {
+      method: "POST",
+      body: { github_url: githubUrl },
+    },
+  );
+}
+
 export function listArtifacts(
   evaluationId: string,
 ): Promise<ProjectArtifactRead[]> {
   return apiFetch<ProjectArtifactRead[]>(`${BASE}/${evaluationId}/artifacts`);
+}
+
+export function getQualityAssessment(
+  evaluationId: string,
+): Promise<ProjectQualityAssessmentRead> {
+  return apiFetch<ProjectQualityAssessmentRead>(
+    `${BASE}/${evaluationId}/quality-assessment`,
+  );
+}
+
+export function runQualityAssessment(
+  evaluationId: string,
+): Promise<ProjectQualityAssessmentRead> {
+  return apiFetch<ProjectQualityAssessmentRead>(
+    `${BASE}/${evaluationId}/quality-assessment`,
+    { method: "POST" },
+  );
 }
 
 export function extractContext(

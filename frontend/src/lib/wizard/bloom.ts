@@ -51,6 +51,65 @@ export const BLOOM_LEVEL_META: Record<BloomLevel, BloomLevelMeta> = {
   },
 };
 
+export interface BloomPreset {
+  total: number;
+  ratios: Record<BloomLevel, number>;
+}
+
+// Stage 1 의 project_category 와 동일한 키. dropdown 자동 매칭 용도.
+export const BLOOM_PRESETS: Record<
+  "weekly" | "midterm" | "final" | "capstone_final",
+  BloomPreset
+> = {
+  weekly: {
+    total: 5,
+    ratios: { 기억: 3, 이해: 2, 적용: 2, 분석: 1, 평가: 0, 창안: 0 },
+  },
+  midterm: {
+    total: 8,
+    ratios: { 기억: 2, 이해: 2, 적용: 2, 분석: 2, 평가: 1, 창안: 1 },
+  },
+  final: {
+    total: 10,
+    ratios: { 기억: 1, 이해: 2, 적용: 3, 분석: 3, 평가: 2, 창안: 1 },
+  },
+  capstone_final: {
+    total: 12,
+    ratios: { 기억: 1, 이해: 1, 적용: 2, 분석: 3, 평가: 3, 창안: 2 },
+  },
+};
+
+export const BLOOM_PRESET_OPTIONS: Array<{
+  value: "weekly" | "midterm" | "final" | "capstone_final";
+  label: string;
+}> = [
+  { value: "weekly", label: "주간" },
+  { value: "midterm", label: "중간" },
+  { value: "final", label: "기말" },
+  { value: "capstone_final", label: "최종" },
+];
+
+export function ratiosEqual(
+  a: Record<string, number>,
+  b: Record<string, number>,
+): boolean {
+  return BLOOM_LEVELS.every(
+    (level) => (a[level] ?? 0) === (b[level] ?? 0),
+  );
+}
+
+export function findMatchingPreset(
+  total: number,
+  ratios: Record<string, number>,
+): "weekly" | "midterm" | "final" | "capstone_final" | null {
+  for (const [key, preset] of Object.entries(BLOOM_PRESETS)) {
+    if (preset.total === total && ratiosEqual(preset.ratios, ratios)) {
+      return key as "weekly" | "midterm" | "final" | "capstone_final";
+    }
+  }
+  return null;
+}
+
 export function defaultBloomRatios(): Record<BloomLevel, number> {
   // 기존 백엔드 기본값과 유사한 균등 분포에서 시작.
   return BLOOM_LEVELS.reduce(

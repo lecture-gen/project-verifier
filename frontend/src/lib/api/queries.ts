@@ -10,6 +10,7 @@ import {
   getEvaluationStatus,
   getInterviewState,
   getLatestReport,
+  getQualityAssessment,
   getReport,
   listArtifacts,
   listEvaluationReports,
@@ -27,6 +28,7 @@ import {
   type ProjectEvaluationRead,
   type ProjectEvaluationStatusRead,
   type ProjectEvaluationSummaryRead,
+  type ProjectQualityAssessmentRead,
   type StudentInterviewStateRead,
 } from "./endpoints";
 
@@ -39,6 +41,8 @@ export const evaluationKeys = {
   status: (id: string) => [...evaluationKeys.all, id, "status"] as const,
   artifacts: (id: string) => [...evaluationKeys.all, id, "artifacts"] as const,
   context: (id: string) => [...evaluationKeys.all, id, "context"] as const,
+  qualityAssessment: (id: string) =>
+    [...evaluationKeys.all, id, "quality-assessment"] as const,
   questions: (id: string) => [...evaluationKeys.all, id, "questions"] as const,
   sessionsList: (id: string) => [...evaluationKeys.all, id, "sessions", "list"] as const,
   reportsList: (id: string) => [...evaluationKeys.all, id, "reports", "list"] as const,
@@ -115,6 +119,19 @@ export function useExtractedContext(
   return useQuery<ExtractedProjectContextRead, Error>({
     queryKey: evaluationKeys.context(evaluationId ?? ""),
     queryFn: () => getContext(evaluationId!),
+    enabled: enabled && (options?.enabled ?? true),
+    ...options,
+  });
+}
+
+export function useQualityAssessment(
+  evaluationId: string | null | undefined,
+  options?: QueryExtras<ProjectQualityAssessmentRead>,
+) {
+  const enabled = Boolean(evaluationId);
+  return useQuery<ProjectQualityAssessmentRead, Error>({
+    queryKey: evaluationKeys.qualityAssessment(evaluationId ?? ""),
+    queryFn: () => getQualityAssessment(evaluationId!),
     enabled: enabled && (options?.enabled ?? true),
     ...options,
   });

@@ -24,7 +24,6 @@ import { persistInterviewSession } from "@/lib/session/interview";
 
 const schema = z.object({
   participant_name: z.string().trim().min(1, "학생 이름을 입력하세요."),
-  room_password: z.string().min(1, "학생 입장 비밀번호를 입력하세요."),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -39,14 +38,13 @@ export function JoinForm({ evaluationId }: JoinFormProps) {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { participant_name: "", room_password: "" },
+    defaultValues: { participant_name: "" },
   });
 
   async function onSubmit(values: FormValues) {
     try {
       const join = await mutation.mutateAsync({
         participant_name: values.participant_name,
-        room_password: values.room_password,
       });
       const session = join.session;
       if (!session?.session_token) {
@@ -76,8 +74,7 @@ export function JoinForm({ evaluationId }: JoinFormProps) {
       <CardHeader>
         <CardTitle className="font-serif text-3xl">평가 입장</CardTitle>
         <p className="text-sm text-muted-foreground">
-          관리자가 안내한 학생 입장 비밀번호와 사용할 이름을 입력하세요. 한 번 시작한
-          평가는 동일한 세션으로만 이어집니다.
+          리포트에 기록될 이름을 입력하면 곧바로 평가가 시작됩니다.
         </p>
       </CardHeader>
       <CardContent>
@@ -98,19 +95,6 @@ export function JoinForm({ evaluationId }: JoinFormProps) {
                       placeholder="리포트에 기록될 이름"
                       {...field}
                     />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="room_password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>학생 입장 비밀번호</FormLabel>
-                  <FormControl>
-                    <Input type="password" autoComplete="off" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

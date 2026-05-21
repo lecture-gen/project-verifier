@@ -11,6 +11,7 @@ import type {
   EvaluationStatus,
   ProjectEvaluationSummaryRead,
 } from "@/lib/api/endpoints";
+import { formatKstDateTime } from "@/lib/format/datetime";
 
 const STATUS_LABEL: Record<EvaluationStatus, string> = {
   created: "평가 생성",
@@ -81,8 +82,8 @@ function EvaluationCard({
 }: {
   evaluation: ProjectEvaluationSummaryRead;
 }) {
-  const created = new Date(evaluation.created_at);
-  const updated = new Date(evaluation.updated_at);
+  const created = formatKstDateTime(evaluation.created_at);
+  const updated = formatKstDateTime(evaluation.updated_at);
   const statusLabel = STATUS_LABEL[evaluation.status] ?? evaluation.status;
 
   return (
@@ -102,8 +103,7 @@ function EvaluationCard({
         </CardHeader>
         <CardContent className="space-y-1 text-xs text-muted-foreground">
           <p>
-            생성 {created.toLocaleString("ko-KR")} · 갱신{" "}
-            {updated.toLocaleString("ko-KR")}
+            생성 {created} · 갱신 {updated}
           </p>
         </CardContent>
       </Card>
