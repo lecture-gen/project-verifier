@@ -5,17 +5,24 @@
 // 외곽 셸(좌측 rail, 제목, nav)은 WizardShell + page 가 책임진다.
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Copy } from "lucide-react";
+import { CalendarIcon, Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useForm } from "react-hook-form";
+import type { DateRange } from "react-day-picker";
 import { toast } from "sonner";
 import { z } from "zod";
 
 import { ZipUploadPipeline } from "@/components/wizard/zip-upload-pipeline";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Form,
   FormControl,
@@ -109,26 +116,44 @@ const infoSchema = z
 
 type InfoFormValues = z.infer<typeof infoSchema>;
 
-function toIsoOrNull(dateStr: string): string | null {
-  if (!dateStr) return null;
-  // <input type="date"> 값은 "YYYY-MM-DD". KST 자정으로 해석해 UTC ISO 로 변환한다.
-  const local = new Date(`${dateStr}T00:00:00+09:00`);
-  if (Number.isNaN(local.getTime())) return null;
-  return local.toISOString();
-}
-
-function isoToDateInput(value: string | null | undefined): string {
-  if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-  // 사용자에게는 KST 기준 날짜를 보여준다.
-  const fmt = new Intl.DateTimeFormat("en-CA", {
+function ymdInKst(date: Date): string {
+  // Date 객체 → "YYYY-MM-DD" (Asia/Seoul 기준).
+  return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Seoul",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  });
-  return fmt.format(d);
+  }).format(date);
+}
+
+function ymdToIso(ymd: string): string | null {
+  if (!ymd) return null;
+  // "YYYY-MM-DD" 를 KST 자정으로 해석해 UTC ISO 로 변환.
+  const parsed = new Date(`${ymd}T00:00:00+09:00`);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString();
+}
+
+function ymdToDate(ymd: string): Date | undefined {
+  if (!ymd) return undefined;
+  // Calendar 가 비교하는 Date 는 로컬 자정이면 충분.
+  const [year, month, day] = ymd.split("-").map(Number);
+  if (!year || !month || !day) return undefined;
+  return new Date(year, month - 1, day);
+}
+
+function formatKstYmdDisplay(ymd: string): string {
+  // 화면 표시용. "2026.05.25" 처럼 점 구분.
+  const date = ymdToDate(ymd);
+  if (!date) return "";
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .format(date)
+    .replace(/\.\s*$/, "");
 }
 
 export function Stage1Info() {
@@ -153,8 +178,8 @@ export function Stage1Info() {
     try {
       const created = await mutation.mutateAsync({
         name: values.name,
-        evaluation_period_start: toIsoOrNull(values.evaluation_period_start ?? ""),
-        evaluation_period_end: toIsoOrNull(values.evaluation_period_end ?? ""),
+        evaluation_period_start: ymdToIso(values.evaluation_period_start ?? ""),
+        evaluation_period_end: ymdToIso(values.evaluation_period_end ?? ""),
         expected_participant_count: values.expected_participant_count,
         project_category: values.project_category,
         focus_points: values.focus_points ?? "",
@@ -216,44 +241,39 @@ export function Stage1Info() {
             )}
           />
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="evaluation_period_start"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>평가 기간 (시작)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="date"
-                      disabled={readonly}
-                      value={field.value ?? ""}
-                      onChange={field.onChange}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="evaluation_period_end"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>평가 기간 (종료)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="date"
-                      disabled={readonly}
-                      value={field.value ?? ""}
-                      onChange={field.onChange}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+          <FormField
+            control={form.control}
+            name="evaluation_period_start"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>프로젝트 기간</FormLabel>
+                <FormControl>
+                  <ProjectPeriodPicker
+                    startYmd={field.value ?? ""}
+                    endYmd={form.watch("evaluation_period_end") ?? ""}
+                    disabled={readonly}
+                    onChange={(start, end) => {
+                      field.onChange(start);
+                      form.setValue("evaluation_period_end", end, {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      });
+                    }}
+                  />
+                </FormControl>
+                <FormDescription>
+                  달력에서 시작일과 종료일을 차례로 선택합니다. 같은 날짜를 두 번
+                  누르면 하루짜리 기간이 됩니다.
+                </FormDescription>
+                <FormMessage />
+                {form.formState.errors.evaluation_period_end && (
+                  <p className="text-sm font-medium text-destructive">
+                    {form.formState.errors.evaluation_period_end.message as string}
+                  </p>
+                )}
+              </FormItem>
+            )}
+          />
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField
@@ -346,6 +366,75 @@ export function Stage1Info() {
         </form>
       </Form>
     </WizardShell>
+  );
+}
+
+function ProjectPeriodPicker({
+  startYmd,
+  endYmd,
+  disabled,
+  onChange,
+}: {
+  startYmd: string;
+  endYmd: string;
+  disabled?: boolean;
+  onChange: (startYmd: string, endYmd: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const clickCount = useRef(0);
+
+  useEffect(() => {
+    if (open) clickCount.current = 0;
+  }, [open]);
+
+  const selected: DateRange | undefined =
+    startYmd || endYmd
+      ? { from: ymdToDate(startYmd), to: ymdToDate(endYmd) }
+      : undefined;
+
+  const label = (() => {
+    if (!startYmd && !endYmd) return "프로젝트 기간을 선택하세요";
+    if (startYmd && endYmd) {
+      return `${formatKstYmdDisplay(startYmd)} ~ ${formatKstYmdDisplay(endYmd)}`;
+    }
+    if (startYmd) return `${formatKstYmdDisplay(startYmd)} ~ (종료일 선택)`;
+    return `(시작일 선택) ~ ${formatKstYmdDisplay(endYmd)}`;
+  })();
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={disabled}
+          className="w-full justify-start text-left font-normal"
+        >
+          <CalendarIcon className="mr-2 h-4 w-4 opacity-70" />
+          <span className={startYmd || endYmd ? "" : "text-muted-foreground"}>
+            {label}
+          </span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="range"
+          numberOfMonths={2}
+          selected={selected}
+          onSelect={(range) => {
+            const next = range as DateRange | undefined;
+            const from = next?.from ? ymdInKst(next.from) : "";
+            const to = next?.to ? ymdInKst(next.to) : "";
+            onChange(from, to);
+            clickCount.current += 1;
+            if (clickCount.current >= 2) {
+              setOpen(false);
+            }
+          }}
+          autoFocus
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 

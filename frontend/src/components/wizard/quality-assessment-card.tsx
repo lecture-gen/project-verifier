@@ -216,24 +216,10 @@ function QualitySummary({
           <summary className="cursor-pointer select-none px-3 py-2 text-xs uppercase tracking-[0.16em] text-muted-foreground">
             점수 산정 근거
           </summary>
-          <div className="space-y-2 border-t border-border/60 px-3 py-3">
+          <div className="border-t border-border/60 px-3 py-3">
             <p className="whitespace-pre-wrap leading-relaxed">
               {assessment.rationale}
             </p>
-            {assessment.evidence_refs.length > 0 && (
-              <div>
-                <div className="mb-1 text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
-                  근거 출처
-                </div>
-                <ul className="space-y-0.5">
-                  {assessment.evidence_refs.map((ref, index) => (
-                    <li key={`${ref}-${index}`} className="font-mono text-xs text-muted-foreground">
-                      {ref}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
         </details>
       )}

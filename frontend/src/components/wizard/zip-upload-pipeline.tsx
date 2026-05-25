@@ -72,7 +72,6 @@ export function ZipUploadPipeline({
   const [analyzeStage, setAnalyzeStage] = useState<StageState>({
     status: "pending",
   });
-  const [analysisOpen, setAnalysisOpen] = useState(false);
 
   const uploadMutation = useUploadZipArtifact(evaluationId);
   const extractMutation = useExtractContext(evaluationId);
@@ -299,21 +298,7 @@ export function ZipUploadPipeline({
         description="LLM 으로 프로젝트 요약·기술 스택·기능·아키텍처·리스크를 추출합니다."
         stage={analyzeStage}
       >
-        {context ? (
-          <div className="space-y-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setAnalysisOpen((value) => !value)}
-            >
-              {analysisOpen ? "분석 결과 접기" : "분석 결과 자세히 보기"}
-            </Button>
-            {analysisOpen && <ContextSummary context={context} />}
-          </div>
-        ) : (
-          <AnalyzeSkeleton />
-        )}
+        {context ? <ContextSummary context={context} /> : <AnalyzeSkeleton />}
       </PipelineStageCard>
 
       <QualityAssessmentCard
@@ -467,37 +452,57 @@ function Metric({
 
 function ContextSummary({ context }: { context: ExtractedProjectContextRead }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {context.summary && (
         <Section title="프로젝트 요약">
           <p className="whitespace-pre-wrap leading-relaxed">{context.summary}</p>
         </Section>
       )}
 
-      <Section title="기술 스택">
+      <CollapsibleSection title="기술 스택">
         <TechStackTable items={context.tech_stack ?? []} />
-      </Section>
+      </CollapsibleSection>
 
-      <Section title="아키텍처">
+      <CollapsibleSection title="아키텍처">
         <ArchitectureCanvas architecture={context.architecture} />
-      </Section>
+      </CollapsibleSection>
 
-      <Section title="주요 기능">
+      <CollapsibleSection title="주요 기능">
         <FeaturesList items={context.features ?? []} />
-      </Section>
+      </CollapsibleSection>
 
-      <Section title="프로젝트 영역">
+      <CollapsibleSection title="프로젝트 영역">
         <AreasGrid areas={context.areas ?? []} />
-      </Section>
+      </CollapsibleSection>
 
-      <Section title="학생이 부딪혔을 만한 구현 난점">
+      <CollapsibleSection title="학생이 부딪혔을 만한 구현 난점">
         <StudentRisksCards risks={context.student_implementation_risks ?? []} />
-      </Section>
+      </CollapsibleSection>
 
-      <Section title="구조 통계">
+      <CollapsibleSection title="구조 통계">
         <StructuralFactsPanel facts={context.structural_facts} />
-      </Section>
+      </CollapsibleSection>
     </div>
+  );
+}
+
+function CollapsibleSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="group rounded-md border border-border/60 bg-card">
+      <summary className="flex cursor-pointer select-none items-center justify-between gap-2 px-3 py-2 text-xs uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:bg-muted/40">
+        <span>{title}</span>
+        <span className="text-[10px] text-muted-foreground/80 transition-transform group-open:rotate-180">
+          ▾
+        </span>
+      </summary>
+      <div className="border-t border-border/60 px-3 py-3">{children}</div>
+    </details>
   );
 }
 
