@@ -11,6 +11,13 @@ backend/data/app.db-journal
 # 서브프로젝트 .idea (루트 .idea 만 추적).
 backend/.idea/
 frontend/.idea/
+# 툴 산출물(런타임 생성물)은 추적 제외.
+.playwright-mcp/
+graphify-out/
+.claude/scheduled_tasks.lock
+# 포스터 react 앱 빌드 부산물(node_modules·dist·.pnp.* 는 상위 규칙으로 이미 제외).
+poster/react-poster/.yarn/
+poster/react-poster/--clip
 
 ### JetBrains ###
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider
