@@ -14,9 +14,9 @@ import { formatKstDateTime } from "@/lib/format/datetime";
 
 import { BloomRadar } from "./bloom-radar";
 import {
-  parseAreaAnalyses,
   parseBloomSummary,
   parseQuestionEvaluations,
+  summarizeQuestionScores,
   type QuestionEvaluationRow,
 } from "./schema";
 import { VerdictBadge } from "./verdict-badge";
@@ -29,7 +29,6 @@ export interface ReportViewProps {
 
 export function ReportView({ report }: ReportViewProps) {
   const bloomRows = parseBloomSummary(report.bloom_summary);
-  const areaRows = parseAreaAnalyses(report.area_analyses);
   const questionRows = parseQuestionEvaluations(report.question_evaluations);
   const totalScore = report.total_score ?? report.authenticity_score ?? 0;
   const totalMaxScore = report.total_max_score ?? 100;
@@ -68,6 +67,38 @@ export function ReportView({ report }: ReportViewProps) {
         </CardContent>
       </Card>
 
+      {questionRows.length > 0 && (
+        <ScoreBreakdown
+          rows={questionRows}
+          totalScore={totalScore}
+          totalMaxScore={totalMaxScore}
+        />
+      )}
+
+      {questionRows.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">문제별 채점 결과</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              각 문제의 채점 기준표 단위로 부여된 점수와 근거를 확인할 수 있습니다.
+              {" "}
+              <span className="text-muted-foreground/80">
+                “상세 보기”를 누르면 학생 답변과 꼬리질문을 펼쳐 볼 수
+                있습니다.
+              </span>
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm">
+            {questionRows.map((row) => (
+              <QuestionEvaluationCard
+                key={`${row.order_index}-${row.question}`}
+                row={row}
+              />
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       {bloomRows.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
@@ -82,35 +113,6 @@ export function ReportView({ report }: ReportViewProps) {
         </Card>
       )}
 
-      {areaRows.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">프로젝트 영역별 평가</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            {areaRows.map((row, index) => (
-              <div
-                key={`${row.area_name}-${index}`}
-                className="rounded border border-border/60 px-3 py-2"
-              >
-                <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                  <span className="font-medium">{row.area_name}</span>
-                  <div className="flex items-center gap-2 text-xs">
-                    <Badge variant="outline">{row.decision}</Badge>
-                    <span className="font-mono text-muted-foreground">
-                      {row.score.toFixed(1)}점
-                    </span>
-                  </div>
-                </div>
-                {row.summary && (
-                  <p className="text-muted-foreground">{row.summary}</p>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
       <div className="grid gap-6 lg:grid-cols-2">
         <ReportPanel title="강점" items={report.strengths ?? []} />
         <ReportPanel
@@ -119,30 +121,101 @@ export function ReportView({ report }: ReportViewProps) {
           tone="danger"
         />
       </div>
-
-      {questionRows.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">문제별 채점 결과</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              각 문제의 채점 기준표 단위로 부여된 점수와 근거를 확인할 수 있습니다.
-              {" "}
-              <span className="text-muted-foreground/80">
-                "상세 보기"를 누르면 학생 답변과 꼬리질문을 펼쳐 볼 수 있습니다.
-              </span>
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            {questionRows.map((row) => (
-              <QuestionEvaluationCard
-                key={`${row.order_index}-${row.question}`}
-                row={row}
-              />
-            ))}
-          </CardContent>
-        </Card>
-      )}
     </div>
+  );
+}
+
+function ScoreBreakdown({
+  rows,
+  totalScore,
+  totalMaxScore,
+}: {
+  rows: QuestionEvaluationRow[];
+  totalScore: number;
+  totalMaxScore: number;
+}) {
+  const { rawTotal, rawMax, computedNormalized } = summarizeQuestionScores(rows);
+  // 합산 환산값과 백엔드 최종 점수가 (라운딩 오차 범위에서) 일치할 때만 환산식을 단정한다.
+  const matchesFinal = Math.abs(computedNormalized - totalScore) < 0.5;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">점수 산출 근거</CardTitle>
+        <p className="text-xs text-muted-foreground">
+          각 문제에서 받은 점수를 모두 더한 뒤 100점 만점으로 환산해 최종 점수가
+          정해집니다.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4 text-sm">
+        <div className="rounded-md border border-border/60 bg-muted/30 px-3 py-3">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="text-muted-foreground">문제별 획득 점수 합계</span>
+            <span className="font-mono text-foreground">
+              <span className="text-lg font-bold">{rawTotal.toFixed(1)}</span>
+              <span className="text-muted-foreground">
+                {" "}
+                / {rawMax.toFixed(0)}점
+              </span>
+            </span>
+          </div>
+          {matchesFinal ? (
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-2 text-xs text-muted-foreground">
+              <span className="font-mono">
+                {rawTotal.toFixed(1)} ÷ {rawMax.toFixed(0)} × 100
+              </span>
+              <span aria-hidden>→</span>
+              <span className="font-mono text-foreground">
+                최종 {totalScore.toFixed(1)} / {totalMaxScore.toFixed(0)}점
+              </span>
+            </div>
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">
+              최종 점수는 {totalScore.toFixed(1)} / {totalMaxScore.toFixed(0)}점
+              입니다.
+            </p>
+          )}
+        </div>
+
+        <div>
+          <div className="mb-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">
+            문제별 기여
+          </div>
+          <ul className="divide-y divide-border/60 rounded-md border border-border/60">
+            {rows.map((row) => {
+              const contribution =
+                rawMax > 0 ? (row.score / rawMax) * 100 : 0;
+              return (
+                <li
+                  key={`${row.order_index}-${row.question}`}
+                  className="flex items-center justify-between gap-3 px-3 py-2"
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="font-mono text-xs text-muted-foreground">
+                      Q{row.order_index + 1}
+                    </span>
+                    <Badge variant="secondary" className="shrink-0">
+                      {row.bloom_level}
+                    </Badge>
+                  </div>
+                  <div className="flex shrink-0 items-baseline gap-3 text-xs">
+                    <span className="font-mono text-foreground">
+                      {row.score.toFixed(1)} / {row.max_score.toFixed(0)}점
+                    </span>
+                    <span className="font-mono text-muted-foreground">
+                      +{contribution.toFixed(1)}점
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            “기여”는 각 문제가 100점 만점 최종 점수에 더한 점수입니다.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -246,27 +319,46 @@ function QuestionEvaluationCard({ row }: { row: QuestionEvaluationRow }) {
                   <div className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
                     꼬리질문
                   </div>
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">
+                    답변 내용을 더 깊이 확인하기 위해 추가로 던진 질문입니다. 각
+                    질문이 나온 이유와, 학생의 답변으로 보충된 부분이 있는지
+                    보여줍니다.
+                  </p>
                   <ul className="space-y-2">
-                    {row.follow_up_exchanges.map((exchange) => (
-                      <li
-                        key={exchange.round}
-                        className="rounded border border-border/40 bg-background/60 p-2"
-                      >
-                        <div className="mb-1 font-mono text-[11px] text-muted-foreground">
-                          꼬리질문 {exchange.round}
-                        </div>
-                        <p className="leading-relaxed text-foreground">
-                          <span className="text-muted-foreground">Q. </span>
-                          {exchange.question || "(질문 없음)"}
-                        </p>
-                        <p className="mt-1 whitespace-pre-wrap leading-relaxed text-foreground">
-                          <span className="text-muted-foreground">A. </span>
-                          {exchange.answer.trim().length > 0
-                            ? exchange.answer
-                            : "(학생이 답을 포기함)"}
-                        </p>
-                      </li>
-                    ))}
+                    {row.follow_up_exchanges.map((exchange) => {
+                      const answered = exchange.answer.trim().length > 0;
+                      return (
+                        <li
+                          key={exchange.round}
+                          className="rounded border border-border/40 bg-background/60 p-2"
+                        >
+                          <div className="mb-1 font-mono text-[11px] text-muted-foreground">
+                            꼬리질문 {exchange.round}
+                          </div>
+                          {exchange.reason && (
+                            <p className="mb-1 leading-relaxed text-muted-foreground">
+                              <span className="text-muted-foreground/80">
+                                이 질문을 한 이유:{" "}
+                              </span>
+                              {exchange.reason}
+                            </p>
+                          )}
+                          <p className="leading-relaxed text-foreground">
+                            <span className="text-muted-foreground">Q. </span>
+                            {exchange.question || "(질문 없음)"}
+                          </p>
+                          <p className="mt-1 whitespace-pre-wrap leading-relaxed text-foreground">
+                            <span className="text-muted-foreground">A. </span>
+                            {answered ? exchange.answer : "(학생이 답을 포기함)"}
+                          </p>
+                          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                            {answered
+                              ? "→ 학생이 이 꼬리질문에 답해 해당 부분이 보충되었습니다."
+                              : "→ 학생이 답하지 못해 이 부분은 보충되지 않았습니다."}
+                          </p>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               )}

@@ -7,13 +7,6 @@ export interface BloomSummaryRow {
   average_score: number; // 0~100 (백분율)
 }
 
-export interface AreaAnalysisRow {
-  area_name: string;
-  decision: string;
-  score: number; // 0~100
-  summary: string;
-}
-
 export interface RubricBreakdownRow {
   description: string;
   awarded: number;
@@ -65,24 +58,6 @@ export function parseBloomSummary(rows: unknown): BloomSummaryRow[] {
     .filter((row): row is BloomSummaryRow => row !== null);
 }
 
-export function parseAreaAnalyses(rows: unknown): AreaAnalysisRow[] {
-  if (!Array.isArray(rows)) return [];
-  return rows
-    .map((row) => {
-      if (!row || typeof row !== "object") return null;
-      const r = row as Record<string, unknown>;
-      const name = asString(r.area_name);
-      if (!name) return null;
-      return {
-        area_name: name,
-        decision: asString(r.decision),
-        score: asNumber(r.score),
-        summary: asString(r.summary),
-      } satisfies AreaAnalysisRow;
-    })
-    .filter((row): row is AreaAnalysisRow => row !== null);
-}
-
 function parseRubricBreakdown(rows: unknown): RubricBreakdownRow[] {
   if (!Array.isArray(rows)) return [];
   return rows
@@ -116,6 +91,23 @@ function parseFollowUpExchanges(rows: unknown): FollowUpExchangeView[] {
       } satisfies FollowUpExchangeView;
     })
     .filter((row): row is FollowUpExchangeView => row !== null);
+}
+
+export interface QuestionScoreSummary {
+  rawTotal: number; // 문제별 획득 점수 합
+  rawMax: number; // 문제별 배점 합
+  computedNormalized: number; // rawTotal / rawMax * 100
+}
+
+// 백엔드 total_score 는 raw 합을 100점 만점으로 정규화한 값(가중치 없음)이므로
+// 프론트에서 문제별 점수를 그대로 합산하면 산출 근거를 재현할 수 있다.
+export function summarizeQuestionScores(
+  rows: QuestionEvaluationRow[],
+): QuestionScoreSummary {
+  const rawTotal = rows.reduce((sum, row) => sum + row.score, 0);
+  const rawMax = rows.reduce((sum, row) => sum + row.max_score, 0);
+  const computedNormalized = rawMax > 0 ? (rawTotal / rawMax) * 100 : 0;
+  return { rawTotal, rawMax, computedNormalized };
 }
 
 export function parseQuestionEvaluations(rows: unknown): QuestionEvaluationRow[] {
