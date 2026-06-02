@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dialearn — AI 기반 프로젝트 수행 진위 검증 서비스</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="poster">
+
+    <!-- ==================== HEADER ==================== -->
+    <header class="header">
+      <div class="header-top">
+        <span class="header-dept">지능시스템 캡스톤디자인 · 한성대학교</span>
+      </div>
+      <h1 class="header-title">Dialearn</h1>
+      <p class="header-subtitle">AI 기반 프로젝트 수행 진위 검증 서비스</p>
+      <div class="header-meta">
+        <div class="header-team">
+          <span class="meta-label">팀원</span>
+          <span>이강혁 <small>(백엔드·인프라·팀장)</small></span>
+          <span class="meta-sep">|</span>
+          <span>신준성 <small>(프론트엔드)</small></span>
+          <span class="meta-sep">|</span>
+          <span>황현석 <small>(AI)</small></span>
+        </div>
+        <div class="header-advisor">
+          <span class="meta-label">지도교수</span>
+          <span>지준 교수님</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ==================== BODY 3-COLUMN ==================== -->
+    <div class="body-grid">
+
+      <!-- ========== COLUMN 1: WHY — 배경 · 소개 · 기대효과 ========== -->
+      <div class="column col-1">
+
+        <!-- 연구 배경 및 문제 정의 -->
+        <section class="block">
+          <h2 class="block-title">연구 배경 및 문제 정의</h2>
+          <div class="block-content">
+            <p class="block-intro">프로젝트 기반 학습(PBL)이 확산되면서, 학생이 제출한 프로젝트를 <strong>본인이 실제로 수행했는지 확인</strong>하는 것이 교수자에게 중요한 과제가 되었다.</p>
+
+            <h3 class="sub-heading">현재 평가 방식의 한계</h3>
+            <div class="problem-card">
+              <div class="problem-item">
+                <span class="problem-num">1</span>
+                <div>
+                  <strong>교수자 시간 부담 과중</strong><br>
+                  학생 1명당 10~20분의 구두 발표+질의응답이 필요하며, 20명 수업 기준 <strong>최소 5시간 이상</strong> 소요된다.
+                </div>
+              </div>
+              <div class="problem-item">
+                <span class="problem-num">2</span>
+                <div>
+                  <strong>대리 수행 판별 불가</strong><br>
+                  코드를 제출했더라도 <strong>본인이 작성했는지</strong>, 또는 AI·타인이 대신 작성했는지 확인할 객관적 방법이 없다.
+                </div>
+              </div>
+              <div class="problem-item">
+                <span class="problem-num">3</span>
+                <div>
+                  <strong>이해도 파악 어려움</strong><br>
+                  제출된 코드와 문서만으로는 학생이 프로젝트의 구조, 설계 의도, 기술적 결정을 <strong>얼마나 이해하고 있는지</strong> 알기 어렵다.
+                </div>
+              </div>
+              <div class="problem-item">
+                <span class="problem-num">4</span>
+                <div>
+                  <strong>평가 기준 불일치</strong><br>
+                  교수자마다 질문 범위와 깊이가 달라 <strong>학생 간 공정한 비교가 어렵다.</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="core-question">
+              <span class="question-mark">Q</span>
+              <div>이 학생이 이 프로젝트를<br><strong>진짜로 수행했는가?</strong></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 서비스 소개 -->
+        <section class="block">
+          <h2 class="block-title">서비스 소개</h2>
+          <div class="block-content">
+            <p class="block-intro"><strong>Dialearn</strong>은 학생이 제출한 프로젝트 자료(ZIP 또는 GitHub)를 AI가 분석하고, <strong>자료 근거 기반 인터뷰</strong>를 통해 수행 진위를 검증하는 서비스이다.</p>
+
+            <div class="feature-grid">
+              <div class="feature-card">
+                <div class="feature-icon">&#x1F50D;</div>
+                <strong>자료 근거 기반 질문</strong>
+                <p>학생이 제출한 코드와 문서를 AI가 직접 분석하여, 그 내용에 기반한 질문을 생성한다. 일반적 질문이 아닌, <strong>해당 프로젝트에 특화된 맞춤 질문</strong>으로 검증한다.</p>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon">&#x2696;</div>
+                <strong>공정한 자동 평가</strong>
+                <p>모든 학생에게 <strong>동일한 루브릭 기준</strong>을 적용하여 채점한다. 교수자에 따른 편차 없이 일관된 기준으로 평가하므로 공정성이 확보된다.</p>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon">&#x23F1;</div>
+                <strong>교수자 부담 해소</strong>
+                <p>학생이 자율적으로 AI 인터뷰에 참여하고, 교수자는 <strong>자동 생성된 리포트만 검토</strong>하면 된다. 평가 소요 시간을 획기적으로 줄인다.</p>
+              </div>
+              <div class="feature-card">
+                <div class="feature-icon">&#x1F3AF;</div>
+                <strong>이해도 심층 검증</strong>
+                <p>Bloom's Taxonomy 6단계에 걸쳐 단순 암기부터 창의적 사고까지 질문하고, <strong>부족한 답변에는 꼬리질문</strong>으로 이해 깊이를 파고든다.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 기대 효과 -->
+        <section class="block">
+          <h2 class="block-title">기대 효과</h2>
+          <div class="block-content">
+
+            <div class="comparison-table">
+              <div class="comparison-header">
+                <div class="comparison-col"></div>
+                <div class="comparison-col comparison-before">기존 방식</div>
+                <div class="comparison-col comparison-after">Dialearn</div>
+              </div>
+              <div class="comparison-row">
+                <div class="comparison-label">평가 방법</div>
+                <div class="comparison-col">교수자가 직접 발표+질의응답</div>
+                <div class="comparison-col">AI가 인터뷰, 교수자는 리포트 검토</div>
+              </div>
+              <div class="comparison-row">
+                <div class="comparison-label">소요 시간<br><small>(학생 20명 기준)</small></div>
+                <div class="comparison-col comparison-before-val">약 5시간<br><small>(15분 × 20명)</small></div>
+                <div class="comparison-col comparison-after-val">약 1시간 40분<br><small>(5분 × 20명)</small></div>
+              </div>
+              <div class="comparison-row">
+                <div class="comparison-label">평가 기준</div>
+                <div class="comparison-col">교수자마다 다름</div>
+                <div class="comparison-col">모든 학생에 동일 루브릭 적용</div>
+              </div>
+              <div class="comparison-row">
+                <div class="comparison-label">이해도 검증</div>
+                <div class="comparison-col">즉흥적 질문 2~3개</div>
+                <div class="comparison-col">Bloom 6단계 + 꼬리질문</div>
+              </div>
+            </div>
+
+            <div class="effect-highlight">
+              <span class="effect-big-num">67%</span>
+              <span>교수자 평가 시간 절감 (추정)</span>
+            </div>
+
+            <div class="effect-list">
+              <div class="effect-item">
+                <span class="effect-check">&#x2714;</span>
+                <span><strong>교수자 부담 해소</strong> — 리포트 검토만으로 평가 완료</span>
+              </div>
+              <div class="effect-item">
+                <span class="effect-check">&#x2714;</span>
+                <span><strong>공정한 평가</strong> — 동일 기준으로 모든 학생 평가</span>
+              </div>
+              <div class="effect-item">
+                <span class="effect-check">&#x2714;</span>
+                <span><strong>이해도 심층 파악</strong> — Bloom 6단계 도달도 시각화</span>
+              </div>
+              <div class="effect-item">
+                <span class="effect-check">&#x2714;</span>
+                <span><strong>정량적 진정성 지표</strong> — authenticity_score (0-100)</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ========== COLUMN 2: HOW — 아키텍처 · 처리 흐름 · AI 구조도 ========== -->
+      <div class="column col-2">
+
+        <!-- 시스템 아키텍처 (React Flow) -->
+        <section class="block">
+          <h2 class="block-title">시스템 아키텍처</h2>
+          <div class="block-content">
+            <div class="rf-canvas" style="height:85mm;">
+              <svg class="rf-edges" viewBox="0 0 300 230" preserveAspectRatio="xMidYMid meet">
+                <defs><marker id="rf-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#b1b1b7"/></marker></defs>
+                <path d="M150,28 C150,48 150,48 150,62" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow)"/>
+                <path d="M150,88 C150,108 150,108 150,122" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow)"/>
+                <path d="M150,148 C150,163 60,168 60,178" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow)"/>
+                <path d="M150,148 C150,168 150,168 150,178" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow)"/>
+                <path d="M150,148 C150,163 240,168 240,178" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow)"/>
+              </svg>
+              <div class="rf-node" style="left:50%;top:4mm;transform:translateX(-50%);min-width:40mm;">
+                <span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-label">Browser</span>
+              </div>
+              <div class="rf-node" style="left:50%;top:22mm;transform:translateX(-50%);min-width:48mm;">
+                <span class="rf-handle rf-handle--top"></span>
+                <span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-label">Next.js 16</span>
+                <span class="rf-sublabel">SSR / CSR</span>
+              </div>
+              <div class="rf-node" style="left:50%;top:40mm;transform:translateX(-50%);min-width:48mm;">
+                <span class="rf-handle rf-handle--top"></span>
+                <span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-label">FastAPI</span>
+                <span class="rf-sublabel">REST API</span>
+              </div>
+              <div class="rf-node" style="left:12%;top:60mm;min-width:38mm;">
+                <span class="rf-handle rf-handle--top"></span>
+                <span class="rf-label">SQLite3</span>
+              </div>
+              <div class="rf-node" style="left:50%;top:60mm;transform:translateX(-50%);min-width:38mm;">
+                <span class="rf-handle rf-handle--top"></span>
+                <span class="rf-label">Qdrant</span>
+                <span class="rf-sublabel">벡터DB</span>
+              </div>
+              <div class="rf-node" style="right:5%;top:60mm;min-width:42mm;">
+                <span class="rf-handle rf-handle--top"></span>
+                <span class="rf-label">OpenAI API</span>
+                <span class="rf-sublabel">LLM · Embedding · TTS · STT</span>
+              </div>
+            </div>
+            <div class="tech-logos">
+              <span class="tech-badge">FastAPI</span>
+              <span class="tech-badge">Next.js 16</span>
+              <span class="tech-badge">React 19</span>
+              <span class="tech-badge">TypeScript</span>
+              <span class="tech-badge">Qdrant</span>
+              <span class="tech-badge">OpenAI</span>
+              <span class="tech-badge">Docker</span>
+              <span class="tech-badge">SQLite</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 시스템 처리 흐름 (React Flow) -->
+        <section class="block">
+          <h2 class="block-title">시스템 처리 흐름</h2>
+          <div class="block-content">
+            <div class="rf-canvas" style="height:260mm;">
+              <svg class="rf-edges" viewBox="0 0 300 700" preserveAspectRatio="xMidYMid meet">
+                <defs><marker id="rf-arrow2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#b1b1b7"/></marker></defs>
+                <path d="M150,38 C150,58 150,58 150,72" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow2)"/>
+                <path d="M150,128 C150,148 150,148 150,162" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow2)"/>
+                <path d="M150,232 C150,252 150,252 150,266" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow2)"/>
+                <path d="M150,336 C150,356 150,356 150,370" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow2)"/>
+                <path d="M150,440 C150,460 150,460 150,474" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow2)"/>
+                <path d="M150,544 C150,564 150,564 150,578" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow2)"/>
+                <path d="M150,630 C150,650 150,650 150,664" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow2)"/>
+              </svg>
+
+              <!-- 학생 제출 (input) -->
+              <div class="rf-node rf-node--input" style="left:8%;right:8%;top:3mm;">
+                <span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-label">학생 자료 제출</span>
+                <span class="rf-sublabel">ZIP 파일 또는 GitHub URL 업로드</span>
+              </div>
+
+              <!-- ① 파일 분류 -->
+              <div class="rf-node" style="left:8%;right:8%;top:30mm;">
+                <span class="rf-handle rf-handle--top"></span>
+                <span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-label">① 파일 분류 &amp; 텍스트 추출</span>
+                <span class="rf-sublabel">10가지 ArtifactRole로 자동 분류 · 파일별 텍스트 추출</span>
+              </div>
+
+              <!-- ② RAG 분석 -->
+              <div class="rf-node rf-node--ai" style="left:8%;right:8%;top:60mm;">
+                <span class="rf-handle rf-handle--top"></span>
+                <span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-badge rf-badge--ai">AI</span>
+                <span class="rf-label">② RAG 기반 프로젝트 분석</span>
+                <span class="rf-sublabel">코드 AST 파싱 · 문서 섹션 추출 · Qdrant 벡터 임베딩 · 의미 검색으로 질문 근거 확보</span>
+              </div>
+
+              <!-- ③ 질문 생성 -->
+              <div class="rf-node rf-node--ai" style="left:8%;right:8%;top:95mm;">
+                <span class="rf-handle rf-handle--top"></span>
+                <span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-badge rf-badge--ai">AI</span>
+                <span class="rf-label">③ Bloom's Taxonomy 질문 자동 생성</span>
+                <span class="rf-sublabel">6단계 인지 수준별 질문 배분 · 채점 루브릭 · 모범 답안 · 출처 참조</span>
+              </div>
+
+              <!-- ④ AI 인터뷰 -->
+              <div class="rf-node rf-node--ai" style="left:8%;right:8%;top:130mm;">
+                <span class="rf-handle rf-handle--top"></span>
+                <span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-badge rf-badge--ai">AI</span>
+                <span class="rf-label">④ AI 인터뷰 (텍스트 / 음성)</span>
+                <span class="rf-sublabel">답변 즉시 평가 · 부족 시 꼬리질문 자동 생성 · STT/TTS 음성 지원</span>
+              </div>
+
+              <!-- ⑤ 리포트 -->
+              <div class="rf-node rf-node--ai" style="left:8%;right:8%;top:165mm;">
+                <span class="rf-handle rf-handle--top"></span>
+                <span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-badge rf-badge--ai">AI</span>
+                <span class="rf-label">⑤ 영역별 진위 검증 리포트</span>
+                <span class="rf-sublabel">7가지 루브릭 채점 · 영역별 신뢰도 · Bloom 도달도 분석</span>
+              </div>
+
+              <!-- 최종 판정 (output) -->
+              <div class="rf-node rf-node--output" style="left:8%;right:8%;top:200mm;">
+                <span class="rf-handle rf-handle--top"></span>
+                <span class="rf-label">최종 판정</span>
+                <span class="rf-sublabel">
+                  <span class="verdict verdict-pass">검증 통과</span>
+                  <span class="verdict verdict-followup">추가 확인 필요</span>
+                  <span class="verdict verdict-low">신뢰 낮음</span>
+                </span>
+                <span class="rf-sublabel">진정성 점수(0-100) · 강점 · 약점 · 의심 지점</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- AI 활용 구조도 (React Flow) -->
+        <section class="block">
+          <h2 class="block-title">AI 활용 구조도</h2>
+          <div class="block-content">
+            <p class="block-intro-sm">시스템 전체에서 AI(OpenAI API)가 <strong>6개 지점</strong>에서 활용된다.</p>
+            <div class="rf-canvas" style="height:195mm;">
+              <svg class="rf-edges" viewBox="0 0 300 530" preserveAspectRatio="xMidYMid meet">
+                <defs><marker id="rf-arrow3" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#b1b1b7"/></marker></defs>
+                <path d="M150,48 C150,68 150,68 150,82" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow3)"/>
+                <path d="M150,128 C150,148 150,148 150,162" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow3)"/>
+                <path d="M150,218 C150,238 80,248 80,258" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow3)"/>
+                <path d="M150,218 C150,238 220,248 220,258" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow3)"/>
+                <path d="M80,310 C80,330 150,340 150,350" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow3)"/>
+                <path d="M220,310 C220,330 150,340 150,350" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow3)"/>
+                <path d="M150,408 C150,428 150,428 150,442" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow3)"/>
+              </svg>
+
+              <div class="rf-node rf-node--ai" style="left:10%;right:10%;top:3mm;">
+                <span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-badge rf-badge--navy">gpt-4o-mini</span>
+                <span class="rf-label">프로젝트 분석</span>
+                <span class="rf-sublabel">코드 구조 · 기술 스택 · 영역 분해 · 위험 요소</span>
+              </div>
+
+              <div class="rf-node rf-node--ai" style="left:10%;right:10%;top:33mm;">
+                <span class="rf-handle rf-handle--top"></span>
+                <span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-badge rf-badge--green">text-embedding-3-small</span>
+                <span class="rf-label">벡터 임베딩</span>
+                <span class="rf-sublabel">1,536차원 벡터 변환 → Qdrant 저장</span>
+              </div>
+
+              <div class="rf-node rf-node--ai" style="left:10%;right:10%;top:63mm;">
+                <span class="rf-handle rf-handle--top"></span>
+                <span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-badge rf-badge--navy">gpt-4o-mini + RAG</span>
+                <span class="rf-label">질문 생성</span>
+                <span class="rf-sublabel">Bloom 6단계 질문 · 루브릭 · 모범답안</span>
+              </div>
+
+              <div class="rf-node rf-node--ai" style="left:5%;width:38%;top:98mm;">
+                <span class="rf-handle rf-handle--top"></span>
+                <span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-badge rf-badge--red">gpt-4o-transcribe</span>
+                <span class="rf-label">STT</span>
+                <span class="rf-sublabel">음성 → 텍스트</span>
+              </div>
+
+              <div class="rf-node rf-node--ai" style="right:5%;width:38%;top:98mm;">
+                <span class="rf-handle rf-handle--top"></span>
+                <span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-badge rf-badge--red">gpt-4o-mini-tts</span>
+                <span class="rf-label">TTS</span>
+                <span class="rf-sublabel">텍스트 → 음성</span>
+              </div>
+
+              <div class="rf-node rf-node--ai" style="left:10%;right:10%;top:133mm;">
+                <span class="rf-handle rf-handle--top"></span>
+                <span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-badge rf-badge--navy">gpt-4o-mini</span>
+                <span class="rf-label">답변 평가</span>
+                <span class="rf-sublabel">루브릭 채점 · 근거 대조 · 꼬리질문 · 점수 산출</span>
+              </div>
+
+              <div class="rf-node rf-node--ai" style="left:10%;right:10%;top:165mm;">
+                <span class="rf-handle rf-handle--top"></span>
+                <span class="rf-badge rf-badge--navy">gpt-4o-mini</span>
+                <span class="rf-label">리포트 생성</span>
+                <span class="rf-sublabel">종합 판정 · 영역별 신뢰도 · Bloom 도달도</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ========== COLUMN 3: WHAT — Bloom · 루브릭 · 서비스 화면 ========== -->
+      <div class="column col-3">
+
+        <!-- Bloom's Taxonomy (React Flow) -->
+        <section class="block">
+          <h2 class="block-title">Bloom's Taxonomy 질문 설계</h2>
+          <div class="block-content">
+            <p>단순 암기 확인부터 새로운 설계 제안까지, <strong>6단계 인지 수준별</strong>로 질문을 자동 배분하여 학생의 이해 깊이를 체계적으로 검증한다.</p>
+            <div class="rf-canvas" style="height:130mm;">
+              <svg class="rf-edges" viewBox="0 0 260 350" preserveAspectRatio="xMidYMid meet">
+                <defs><marker id="rf-arrow4" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L0,8 L8,4 z" fill="#b1b1b7"/></marker></defs>
+                <path d="M130,46 C130,56 130,56 130,62" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow4)"/>
+                <path d="M130,98 C130,108 130,108 130,114" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow4)"/>
+                <path d="M130,150 C130,160 130,160 130,166" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow4)"/>
+                <path d="M130,202 C130,212 130,212 130,218" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow4)"/>
+                <path d="M130,254 C130,264 130,264 130,270" stroke="#b1b1b7" stroke-width="1.2" fill="none" marker-end="url(#rf-arrow4)"/>
+              </svg>
+
+              <div class="rf-node" style="left:10%;right:10%;top:2mm;border-left:1.5mm solid #9b2c2c;">
+                <span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-label" style="color:#9b2c2c;">6 창안 (Create)</span>
+                <span class="rf-sublabel">새로운 설계를 제안할 수 있는가?</span>
+              </div>
+              <div class="rf-node" style="left:10%;right:10%;top:22mm;border-left:1.5mm solid #c53030;">
+                <span class="rf-handle rf-handle--top"></span><span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-label" style="color:#c53030;">5 평가 (Evaluate)</span>
+                <span class="rf-sublabel">기술 선택의 장단점을 판단할 수 있는가?</span>
+              </div>
+              <div class="rf-node" style="left:10%;right:10%;top:42mm;border-left:1.5mm solid #dd6b20;">
+                <span class="rf-handle rf-handle--top"></span><span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-label" style="color:#dd6b20;">4 분석 (Analyze)</span>
+                <span class="rf-sublabel">모듈 간 관계와 데이터 흐름을 설명할 수 있는가?</span>
+              </div>
+              <div class="rf-node" style="left:10%;right:10%;top:62mm;border-left:1.5mm solid #d69e2e;">
+                <span class="rf-handle rf-handle--top"></span><span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-label" style="color:#d69e2e;">3 적용 (Apply)</span>
+                <span class="rf-sublabel">학습한 개념을 실제 구현에 적용했는가?</span>
+              </div>
+              <div class="rf-node" style="left:10%;right:10%;top:82mm;border-left:1.5mm solid #38a169;">
+                <span class="rf-handle rf-handle--top"></span><span class="rf-handle rf-handle--bottom"></span>
+                <span class="rf-label" style="color:#38a169;">2 이해 (Understand)</span>
+                <span class="rf-sublabel">코드의 동작 원리를 설명할 수 있는가?</span>
+              </div>
+              <div class="rf-node" style="left:10%;right:10%;top:102mm;border-left:1.5mm solid #2b6cb0;">
+                <span class="rf-handle rf-handle--top"></span>
+                <span class="rf-label" style="color:#2b6cb0;">1 기억 (Remember)</span>
+                <span class="rf-sublabel">사용한 기술 스택과 구조를 기억하는가?</span>
+              </div>
+            </div>
+            <p class="rf-note">교수자가 과제 유형(주간/중간/기말)에 따라 각 단계별 질문 비율을 조정할 수 있다.</p>
+          </div>
+        </section>
+
+        <!-- 루브릭 채점 기준 -->
+        <section class="block">
+          <h2 class="block-title">7가지 루브릭 채점 기준</h2>
+          <div class="block-content">
+            <p class="block-intro-sm">모든 질문에 동일한 7가지 기준을 적용하여 <strong>일관되고 공정한 채점</strong>을 수행한다.</p>
+            <div class="rubric-list">
+              <div class="rubric-item"><span class="rubric-num">1</span><div><strong>자료 근거 일치도</strong><br><small>답변이 제출된 코드·문서와 얼마나 일치하는가</small></div></div>
+              <div class="rubric-item"><span class="rubric-num">2</span><div><strong>구현 구체성</strong><br><small>추상적 설명이 아닌 실제 구현 세부사항을 알고 있는가</small></div></div>
+              <div class="rubric-item"><span class="rubric-num">3</span><div><strong>구조 이해도</strong><br><small>전체 아키텍처와 설계 의도를 이해하고 있는가</small></div></div>
+              <div class="rubric-item"><span class="rubric-num">4</span><div><strong>의사결정 이해도</strong><br><small>기술 선택, 설계 결정의 이유를 설명할 수 있는가</small></div></div>
+              <div class="rubric-item"><span class="rubric-num">5</span><div><strong>트러블슈팅 경험</strong><br><small>개발 중 마주친 문제와 해결 과정을 기억하는가</small></div></div>
+              <div class="rubric-item"><span class="rubric-num">6</span><div><strong>한계 인식</strong><br><small>프로젝트의 제한사항과 개선점을 인식하고 있는가</small></div></div>
+              <div class="rubric-item"><span class="rubric-num">7</span><div><strong>답변 일관성</strong><br><small>이전 답변과 모순되지 않고 일관된 설명을 하는가</small></div></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 서비스 화면 -->
+        <section class="block">
+          <h2 class="block-title">서비스 화면</h2>
+          <div class="block-content screenshots-grid">
+            <div class="screenshot-item">
+              <img src="assets/screenshots/01_main.png" alt="메인 페이지">
+              <span class="screenshot-caption">메인 페이지</span>
+            </div>
+            <div class="screenshot-item">
+              <img src="assets/screenshots/02_wizard.png" alt="평가 생성">
+              <span class="screenshot-caption">평가 생성 위저드</span>
+            </div>
+            <div class="screenshot-item">
+              <img src="assets/screenshots/04_admin_console.png" alt="관리 콘솔">
+              <span class="screenshot-caption">관리 콘솔</span>
+            </div>
+            <div class="screenshot-item">
+              <img src="assets/screenshots/05_join.png" alt="학생 입장">
+              <span class="screenshot-caption">학생 입장</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+    </div>
+
+    <!-- ==================== FOOTER ==================== -->
+    <footer class="footer">
+      <div class="footer-date">2026.06.05</div>
+      <div class="footer-center">지능시스템 캡스톤디자인 · 한성대학교</div>
+      <div class="footer-qr">
+        <div class="qr-placeholder">QR</div>
+      </div>
+    </footer>
+
+  </div>
+</body>
+</html>

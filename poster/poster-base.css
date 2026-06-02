@@ -1,0 +1,221 @@
+/* Dialearn 포스터 — 공용 베이스 (모던 미니멀)
+ * 차콜·그레이 중립 시스템 + 포스터별 포인트 1색(--accent).
+ * 각 포스터는 :root에서 --accent와 레이아웃(.poster grid, .header)만 재정의한다. */
+
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+
+* { margin: 0; padding: 0; box-sizing: border-box; word-break: keep-all; overflow-wrap: break-word; }
+
+:root {
+  font-size: 15px;
+  --ink: #17171a;          /* 제목·강조 텍스트 */
+  --ink-2: #34343a;        /* 본문 */
+  --muted: #6b6b73;        /* 설명·메타 */
+  --faint: #9a9aa2;        /* 보조 */
+  --line: #e6e5e1;         /* 헤어라인 */
+  --line-2: #d6d5d0;       /* 강한 헤어라인 */
+  --paper: #ffffff;
+  --paper-2: #f6f5f2;      /* 패널 */
+  --paper-3: #efeeea;      /* 더 짙은 패널 */
+  --accent: #e8552a;       /* 포스터별 재정의 */
+  --accent-ink: #b23a16;   /* 텍스트용 짙은 accent (재정의) */
+  --accent-wash: #fbe9e2;  /* 연한 accent 배경 (재정의) */
+}
+
+html, body { background: #d9d8d3; }
+body {
+  font-family: 'Pretendard', system-ui, sans-serif;
+  line-height: 1.5;
+  color: var(--ink-2);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== 고정 A0 캔버스 (1400 : 1979 ≈ 841 : 1189) ===== */
+.poster {
+  width: 1400px;
+  height: 1979px;
+  overflow: hidden;
+  margin: 0 auto;
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* ===== 공용 섹션 블록 ===== */
+.block { display: flex; flex-direction: column; min-height: 0; }
+.block-title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 1.42rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  padding-bottom: 11px;
+  margin-bottom: 16px;
+  border-bottom: 2px solid var(--ink);
+  flex: 0 0 auto;
+}
+.block-title .idx {
+  font-family: 'Pretendard', sans-serif;
+  font-size: 1.02rem;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+.block-body { min-height: 0; display: flex; flex-direction: column; }
+
+/* ===== 산문 ===== */
+.block-body p { font-size: 1.04rem; line-height: 1.66; color: var(--ink-2); text-align: justify; }
+.block-body p + p { margin-top: 11px; }
+.block-body p strong, .block-body p b { color: var(--accent-ink); font-weight: 800; }
+.lead {
+  font-size: 1.0rem;
+  line-height: 1.62;
+  color: var(--muted);
+  margin-bottom: 16px;
+  padding-left: 14px;
+  border-left: 3px solid var(--accent);
+}
+
+/* ===== 주요 기능 ===== */
+.features .block-body { gap: 16px; }
+.feature { padding-left: 16px; border-left: 1px solid var(--line-2); }
+.feature-title {
+  font-size: 1.16rem;
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 6px;
+  display: flex; align-items: center; gap: 9px;
+}
+.feature-title::before {
+  content: '';
+  width: 7px; height: 7px;
+  background: var(--accent);
+  flex: 0 0 auto;
+  margin-left: -19px;
+  border-radius: 1px;
+}
+.feature p { font-size: 1.0rem; line-height: 1.6; color: var(--ink-2); }
+
+/* ===== 다이어그램 호스트 ===== */
+.dg-host {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  padding: 4px 0;
+}
+.dg-host > svg { width: 100%; height: 100%; display: block; }
+.dg-logo { display: block; flex: 0 0 auto; }
+
+/* 카드 (foreignObject 내부 HTML) */
+.dg-card {
+  box-sizing: border-box; width: 100%; height: 100%;
+  display: flex; flex-direction: column; justify-content: center; gap: 4px;
+  padding: 10px 13px;
+  background: var(--paper);
+  border: 1.5px solid var(--line-2);
+  border-left: 4px solid var(--faint);
+  border-radius: 9px;
+  overflow: hidden;
+}
+.dg-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dg-card-actor {
+  font-size: 10px; font-weight: 800; letter-spacing: 0.04em; line-height: 1;
+  padding: 3px 8px; border-radius: 999px;
+  background: var(--accent-wash); color: var(--accent-ink);
+}
+.dg-card-title { font-size: 15px; font-weight: 800; line-height: 1.2; color: var(--ink); }
+.dg-card-desc { font-size: 11.5px; font-weight: 400; line-height: 1.34; color: var(--muted); }
+
+/* 카테고리 = 왼쪽 보더 색. accent = 핵심 노드, 회색조 = 인프라 */
+.dg-arch-client { border-left-color: var(--accent); }
+.dg-arch-proxy  { border-left-color: #b8b7b1; }
+.dg-arch-web    { border-left-color: #8a8a90; }
+.dg-arch-api    { border-left-color: var(--accent); }
+.dg-arch-qdrant { border-left-color: #b8b7b1; }
+.dg-arch-sqlite { border-left-color: #b8b7b1; }
+.dg-arch-external { border-left-color: var(--ink); }
+.dg-flow-io     { border-left-color: var(--accent); }
+.dg-flow-rag    { border-left-color: #8a8a90; }
+.dg-flow-agent  { border-left-color: #5b5b62; }
+.dg-flow-report { border-left-color: var(--accent); }
+.dg-flow-decision { border-left-color: var(--accent); }
+
+/* 경계 박스 */
+.dg-zone { stroke-width: 1.5; }
+.dg-zone-oracle { fill: rgba(0,0,0,0.018); stroke: var(--line-2); }
+.dg-zone-docker { fill: var(--accent-wash); fill-opacity: 0.5; stroke: var(--accent); stroke-dasharray: 7 5; }
+.dg-zone-label { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 800; letter-spacing: 0.02em; white-space: nowrap; }
+.dg-zone-label-oracle { color: var(--muted); }
+.dg-zone-label-docker { color: var(--accent-ink); }
+
+/* 엣지 / 화살표 / 라벨 / 다이아몬드 */
+.dg-edge { fill: none; stroke: #9a9aa2; stroke-width: 1.7; }
+.dg-arrowhead { fill: #9a9aa2; }
+.dg-edge-label { font-size: 11.5px; font-weight: 800; fill: var(--muted); }
+.dg-edge-label-strong { font-size: 13px; fill: var(--accent-ink); }
+.dg-diamond { fill: var(--paper); stroke: var(--accent); stroke-width: 2; }
+.dg-diamond-label { font-size: 14.5px; font-weight: 800; fill: var(--accent-ink); }
+
+/* ===== 결과물 ===== */
+.result-shots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.result-shot { display: flex; flex-direction: column; gap: 8px; }
+.result-shot img {
+  width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top;
+  border: 1px solid var(--line-2); border-radius: 6px; background: var(--paper);
+}
+.result-shot figcaption { font-size: 0.92rem; font-weight: 700; color: var(--muted); }
+.result-shot-placeholder {
+  width: 100%; aspect-ratio: 16 / 10;
+  display: grid; place-items: center;
+  border: 1.5px dashed var(--line-2); border-radius: 6px;
+  background: repeating-linear-gradient(45deg, var(--paper-2), var(--paper-2) 11px, var(--paper-3) 11px, var(--paper-3) 22px);
+  color: var(--faint); font-size: 0.92rem; font-weight: 700;
+}
+
+/* ===== 기대 효과 ===== */
+.impact-title {
+  font-size: 1.42rem; font-weight: 800; color: var(--ink);
+  display: flex; align-items: baseline; gap: 12px;
+  margin-bottom: 16px;
+}
+.impact-title .idx { font-size: 1.02rem; font-weight: 800; color: var(--accent); }
+.impact-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.impact { padding-top: 14px; border-top: 3px solid var(--accent); }
+.impact-item-title { font-size: 1.12rem; font-weight: 800; color: var(--ink); margin-bottom: 8px; }
+.impact p { font-size: 0.98rem; line-height: 1.6; color: var(--ink-2); text-align: justify; }
+
+/* ===== 푸터 ===== */
+.footer {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column; gap: 7px;
+  font-size: 0.92rem; line-height: 1.5;
+}
+.footer-people { font-weight: 700; color: var(--ink); }
+.footer-tech { font-size: 0.85rem; color: var(--muted); }
+.footer-label {
+  display: inline-block; margin-right: 9px;
+  font-size: 0.78rem; font-weight: 800; letter-spacing: 0.02em;
+  color: var(--accent-ink);
+}
+
+/* ===== 인쇄: 고정 1400×1979 캔버스를 실제 A0(841×1189mm)로 균일 확대 =====
+   1400px → 841mm(96dpi 환산 3177.7px) 배율 = 2.2698. transform 은 레이아웃을
+   바꾸지 않으므로 화면 = 인쇄가 픽셀 비례로 동일하다. 브라우저 인쇄 대화상자에서
+   용지 A0 · 배율 100% · 여백 없음 으로 저장하면 된다. */
+@media print {
+  @page { size: 841mm 1189mm; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #fff; }
+  body { width: 3178px; height: 4492px; overflow: hidden; }
+  .poster {
+    margin: 0;
+    transform: scale(2.2698);
+    transform-origin: top left;
+  }
+}
