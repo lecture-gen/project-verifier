@@ -75,7 +75,7 @@ export const BLOOM_PRESETS: Record<
   },
   capstone_final: {
     total: 10,
-    ratios: { 기억: 0, 이해: 3, 적용: 3, 분석: 1, 평가: 1, 창안: 0 },
+    ratios: { 기억: 0, 이해: 3, 적용: 3, 분석: 2, 평가: 1, 창안: 1 },
   },
 };
 
