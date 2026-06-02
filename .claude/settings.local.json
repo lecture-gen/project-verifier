@@ -11,5 +11,8 @@
       "Bash(rtk uv *)",
       "Bash(uv run *)"
     ]
+  },
+  "enabledPlugins": {
+    "ecc@everything-claude-code": true
   }
 }
