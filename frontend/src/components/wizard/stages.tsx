@@ -246,7 +246,7 @@ export function Stage1Info() {
             name="evaluation_period_start"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>프로젝트 기간</FormLabel>
+                <FormLabel>평가 기간</FormLabel>
                 <FormControl>
                   <ProjectPeriodPicker
                     startYmd={field.value ?? ""}
@@ -281,7 +281,7 @@ export function Stage1Info() {
               name="expected_participant_count"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>예상 학생 수</FormLabel>
+                  <FormLabel>응시생 수</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
@@ -308,7 +308,7 @@ export function Stage1Info() {
               name="project_category"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>프로젝트 분류</FormLabel>
+                  <FormLabel>평가 유형</FormLabel>
                   <FormControl>
                     <Select
                       value={field.value}
@@ -316,7 +316,7 @@ export function Stage1Info() {
                       disabled={readonly}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="프로젝트 분류를 선택하세요" />
+                        <SelectValue placeholder="평가 유형을 선택하세요" />
                       </SelectTrigger>
                       <SelectContent>
                         {PROJECT_CATEGORY_OPTIONS.map((option) => (
@@ -393,7 +393,7 @@ function ProjectPeriodPicker({
       : undefined;
 
   const label = (() => {
-    if (!startYmd && !endYmd) return "프로젝트 기간을 선택하세요";
+    if (!startYmd && !endYmd) return "평가 기간을 선택하세요";
     if (startYmd && endYmd) {
       return `${formatKstYmdDisplay(startYmd)} ~ ${formatKstYmdDisplay(endYmd)}`;
     }

@@ -189,7 +189,7 @@ export function ZipUploadPipeline({
     <div className="space-y-5">
       <section className="space-y-3">
         <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-          zip 자료 업로드
+          자료 업로드
         </h3>
         {readOnly ? (
           <p className="rounded-md border border-dashed border-border/60 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
@@ -266,7 +266,7 @@ export function ZipUploadPipeline({
 
       <PipelineStageCard
         title="1. 업로드"
-        description="zip 파일을 서버로 전송합니다."
+        description="zip/github를 서버로 전송합니다."
         stage={uploadStage}
       >
         {uploadStage.status === "done" && selectedFile && (
@@ -283,7 +283,7 @@ export function ZipUploadPipeline({
 
       <PipelineStageCard
         title="2. 자료 분류"
-        description="zip 내부 코드/문서를 분류하고 텍스트를 추출합니다."
+        description="코드/문서를 분류하고 텍스트를 추출합니다."
         stage={classifyStage}
       >
         {uploadResult ? (
