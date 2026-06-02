@@ -486,6 +486,10 @@ function ContextSummary({ context }: { context: ExtractedProjectContextRead }) {
   );
 }
 
+// 닫힌 상태에서도 내용 일부(peek)를 보여주고 하단을 blur 처리한다.
+// 콘텐츠가 peek 높이보다 길 때만 "+더보기" 버튼/blur 를 노출한다(짧으면 전체 표시).
+const PEEK_HEIGHT_PX = 128;
+
 function CollapsibleSection({
   title,
   children,
@@ -493,16 +497,80 @@ function CollapsibleSection({
   title: string;
   children: React.ReactNode;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+
+  // 콘텐츠 실제 높이가 peek 높이를 넘는지 지속 관찰한다.
+  // ArchitectureCanvas 등 비동기/가변 렌더 콘텐츠 대비 ResizeObserver 사용.
+  useEffect(() => {
+    const node = contentRef.current;
+    if (!node) return;
+    const measure = () => {
+      setIsOverflowing(node.scrollHeight > PEEK_HEIGHT_PX + 1);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [children]);
+
+  const showPeek = isOverflowing && !expanded;
+
   return (
-    <details className="group rounded-md border border-border/60 bg-card">
-      <summary className="flex cursor-pointer select-none items-center justify-between gap-2 px-3 py-2 text-xs uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:bg-muted/40">
+    <div className="group rounded-md border border-border/60 bg-card">
+      <button
+        type="button"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((prev) => !prev)}
+        className="flex w-full cursor-pointer select-none items-center justify-between gap-2 px-3 py-2 text-xs uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:bg-muted/40"
+      >
         <span>{title}</span>
-        <span className="text-[10px] text-muted-foreground/80 transition-transform group-open:rotate-180">
+        <span
+          className={`text-[10px] text-muted-foreground/80 transition-transform ${
+            expanded ? "rotate-180" : ""
+          }`}
+        >
           ▾
         </span>
-      </summary>
-      <div className="border-t border-border/60 px-3 py-3">{children}</div>
-    </details>
+      </button>
+      <div className="relative border-t border-border/60">
+        <div
+          ref={contentRef}
+          className="overflow-hidden px-3 py-3 transition-[max-height]"
+          style={{ maxHeight: showPeek ? PEEK_HEIGHT_PX : undefined }}
+        >
+          {children}
+        </div>
+        {showPeek && (
+          <>
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-card to-transparent" />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setExpanded(true)}
+              className="absolute bottom-1 left-1/2 h-7 -translate-x-1/2 px-3 text-xs text-muted-foreground hover:text-foreground"
+            >
+              + 더보기
+            </Button>
+          </>
+        )}
+        {isOverflowing && expanded && (
+          <div className="flex justify-center px-3 pb-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setExpanded(false)}
+              className="h-7 px-3 text-xs text-muted-foreground hover:text-foreground"
+            >
+              접기 ▴
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
