@@ -607,7 +607,7 @@ function ReportTab({ evaluationId }: { evaluationId: string }) {
   if (completedSessions.length === 0) {
     return (
       <p className="rounded-md border border-dashed border-border/60 px-4 py-10 text-center text-sm text-muted-foreground">
-        아직 생성된 리포트가 없습니다. 학생가 검증를 완료하면 학생별로 리포트가 채워집니다.
+        아직 생성된 리포트가 없습니다. 학생이 검증를 완료하면 학생별로 리포트가 채워집니다.
       </p>
     );
   }

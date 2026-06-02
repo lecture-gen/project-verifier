@@ -19,7 +19,7 @@ export function AreasGrid({ areas }: { areas: ProjectAreaContext[] }) {
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
         이 프로젝트를 <strong className="font-medium text-foreground">기능 / 도메인 / 레이어</strong> 단위로 분할한 영역입니다.
-        각 영역은 검증 질문이 출제되는 단위가 되며, 학생가 영역별로 어떤 점을 설명할 수 있어야
+        각 영역은 검증 질문이 출제되는 단위가 되며, 학생이 영역별로 어떤 점을 설명할 수 있어야
         하는지 정리됩니다.
       </p>
       <ul className="grid gap-3 md:grid-cols-2">

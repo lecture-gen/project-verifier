@@ -17,7 +17,7 @@ export default function HomePage() {
           Dialearn / 프로젝트 진위 검증 검증
         </p>
         <h1 className="mt-2 text-4xl font-semibold tracking-tight">
-          학생가 이 프로젝트를 진짜로 수행했는지 확인합니다.
+          학생이 이 프로젝트를 진짜로 수행했는지 확인합니다.
         </h1>
         <p className="mt-4 max-w-2xl text-base text-muted-foreground">
           단일 zip 자료를 분석해 자료 근거 기반 질문을 만들고, 검증 답변을
