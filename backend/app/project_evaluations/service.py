@@ -282,7 +282,10 @@ class ProjectEvaluationService:
         if settings.RAG_ENABLED and settings.QDRANT_URL and self._openai is not None:
             from qdrant_client import QdrantClient
 
-            self._qdrant = QdrantClient(url=settings.QDRANT_URL)
+            self._qdrant = QdrantClient(
+                url=settings.QDRANT_URL,
+                api_key=settings.QDRANT_API_KEY or None,
+            )
 
     def create_evaluation(
         self, payload: ProjectEvaluationCreate
@@ -1406,4 +1409,3 @@ class ProjectEvaluationService:
             )
         _clear_auth_failures("session", evaluation_id, f"{session_id}:{client_id}")
         return self.repository.to_session_read(session_row)
-

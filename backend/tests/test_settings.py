@@ -8,6 +8,7 @@ def test_api_settings_load_default_values() -> None:
     settings = ApiSettings()
 
     assert settings.OPENAI_EMBEDDING_MODEL == "text-embedding-3-small"
+    assert settings.QDRANT_API_KEY == ""
     assert settings.QDRANT_COLLECTION_NAME == "project_evaluation_chunks"
 
 

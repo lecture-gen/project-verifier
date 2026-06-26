@@ -7,8 +7,7 @@ FROM node:${NODE_VERSION} AS deps
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
 FROM node:${NODE_VERSION} AS builder
 WORKDIR /app

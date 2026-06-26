@@ -16,6 +16,7 @@ class ApiSettings(BaseSettings):
         "전문 교수자처럼 차분하고 명확한 톤으로, 자연스러운 한국어 억양으로 말해 주세요."
     )
     QDRANT_URL: str = "http://localhost:6333"
+    QDRANT_API_KEY: str = ""
     QDRANT_COLLECTION_NAME: str = "project_evaluation_chunks"
     RAG_ENABLED: bool = True
     APP_SQLITE_PATH: str = "data/app.db"
