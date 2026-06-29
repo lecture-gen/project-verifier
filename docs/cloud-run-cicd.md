@@ -21,14 +21,21 @@ Repository Settings -> Secrets and variables -> Actions -> Repository secrets에
 | Name | Value |
 | --- | --- |
 | `GCP_PROJECT_ID` | `elysium-ai-ifnvh` |
-| `GCP_SA_KEY` | 배포용 Google Cloud service account JSON key 전체 |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | GitHub OIDC provider resource name |
+| `GCP_SERVICE_ACCOUNT` | `github-cloud-run-deployer@elysium-ai-ifnvh.iam.gserviceaccount.com` |
 | `OPENAI_API_KEY` | OpenAI API key |
 
 `OPENAI_API_KEY`는 workflow가 Google Secret Manager의 `OPENAI_API_KEY` secret으로 동기화한다. Cloud Run API 서비스에는 평문 env가 아니라 Secret Manager 참조로 연결된다.
 
+`GCP_WORKLOAD_IDENTITY_PROVIDER` 값:
+
+```text
+projects/260775404143/locations/global/workloadIdentityPools/github-actions/providers/project-verifier
+```
+
 ## 배포용 Service Account 권한
 
-`GCP_SA_KEY`에 사용하는 service account에는 다음 권한이 필요하다.
+`GCP_SERVICE_ACCOUNT`에는 다음 project-level 권한이 필요하다.
 
 ```text
 roles/run.admin
@@ -37,14 +44,19 @@ roles/artifactregistry.admin
 roles/secretmanager.admin
 roles/iam.serviceAccountUser
 roles/serviceusage.serviceUsageAdmin
+roles/storage.objectAdmin
 ```
 
 이미 필요한 Google Cloud API가 활성화되어 있으면 `roles/serviceusage.serviceUsageAdmin`은 제거할 수 있다.
 
+그리고 `lecture-gen/project-verifier` GitHub OIDC principal에는 `GCP_SERVICE_ACCOUNT`에 대한 `roles/iam.workloadIdentityUser` binding이 필요하다.
+
+이 프로젝트는 조직 정책상 service account JSON key 생성이 차단되어 있으므로, GitHub Actions는 key 파일 대신 Workload Identity Federation으로 인증한다.
+
 ## 동작 순서
 
 1. GitHub Secrets 유효성 확인
-2. Google Cloud 인증
+2. GitHub OIDC로 Google Cloud 인증
 3. 필요한 Google Cloud API 활성화
 4. GitHub Secret `OPENAI_API_KEY`를 Secret Manager `OPENAI_API_KEY`로 동기화
 5. `dialearn-qdrant` 배포
