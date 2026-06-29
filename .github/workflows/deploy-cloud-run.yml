@@ -1,0 +1,184 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/deploy-cloud-run.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: cloud-run-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: asia-east1
+  PUBLIC_WEB_BASE_URL: https://dialearn.everyi.ai
+  WEB_SERVICE: dialearn-web
+  API_SERVICE: dialearn-api
+  QDRANT_SERVICE: dialearn-qdrant
+  OPENAI_SECRET_NAME: OPENAI_API_KEY
+
+jobs:
+  deploy:
+    name: Deploy production services
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate required GitHub Secrets
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$PROJECT_ID" || { echo "Missing GitHub Secret: GCP_PROJECT_ID"; exit 1; }
+          test -n "$GCP_SA_KEY" || { echo "Missing GitHub Secret: GCP_SA_KEY"; exit 1; }
+          test -n "$OPENAI_API_KEY" || { echo "Missing GitHub Secret: OPENAI_API_KEY"; exit 1; }
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Ensure required Google Cloud APIs
+        run: |
+          set -euo pipefail
+          gcloud services enable \
+            run.googleapis.com \
+            cloudbuild.googleapis.com \
+            artifactregistry.googleapis.com \
+            secretmanager.googleapis.com \
+            --project "$PROJECT_ID"
+
+      - name: Sync OpenAI key to Secret Manager
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          secret_file="$RUNNER_TEMP/openai-api-key.txt"
+          printf '%s' "$OPENAI_API_KEY" > "$secret_file"
+
+          if gcloud secrets describe "$OPENAI_SECRET_NAME" --project "$PROJECT_ID" >/dev/null 2>&1; then
+            gcloud secrets versions add "$OPENAI_SECRET_NAME" \
+              --project "$PROJECT_ID" \
+              --data-file "$secret_file"
+          else
+            gcloud secrets create "$OPENAI_SECRET_NAME" \
+              --project "$PROJECT_ID" \
+              --replication-policy automatic \
+              --data-file "$secret_file"
+          fi
+
+          rm -f "$secret_file"
+
+          project_number="$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')"
+          runtime_service_account="${project_number}-compute@developer.gserviceaccount.com"
+          gcloud secrets add-iam-policy-binding "$OPENAI_SECRET_NAME" \
+            --project "$PROJECT_ID" \
+            --member "serviceAccount:${runtime_service_account}" \
+            --role roles/secretmanager.secretAccessor \
+            --quiet
+
+      - name: Deploy Qdrant
+        run: |
+          set -euo pipefail
+          gcloud run deploy "$QDRANT_SERVICE" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --image docker.io/qdrant/qdrant:v1.15.4 \
+            --port 6333 \
+            --no-invoker-iam-check \
+            --memory 1Gi \
+            --cpu 1 \
+            --min-instances 1 \
+            --max-instances 1 \
+            --timeout 3600 \
+            --clear-secrets \
+            --quiet
+
+          qdrant_url="$(gcloud run services describe "$QDRANT_SERVICE" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --format='value(status.url)')"
+          echo "QDRANT_URL=${qdrant_url}" >> "$GITHUB_ENV"
+
+      - name: Deploy FastAPI
+        run: |
+          set -euo pipefail
+          gcloud run deploy "$API_SERVICE" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --source backend \
+            --port 8000 \
+            --no-invoker-iam-check \
+            --memory 2Gi \
+            --cpu 2 \
+            --min-instances 1 \
+            --max-instances 1 \
+            --timeout 3600 \
+            --set-env-vars "QDRANT_URL=${QDRANT_URL},APP_SQLITE_PATH=/app/data/app.db,APP_ARTIFACT_DIR=/app/data/artifacts,PUBLIC_WEB_BASE_URL=${PUBLIC_WEB_BASE_URL},CORS_ALLOW_ORIGINS=${PUBLIC_WEB_BASE_URL},RAG_ENABLED=true" \
+            --set-secrets "OPENAI_API_KEY=${OPENAI_SECRET_NAME}:latest" \
+            --quiet
+
+          api_url="$(gcloud run services describe "$API_SERVICE" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --format='value(status.url)')"
+          echo "API_URL=${api_url}" >> "$GITHUB_ENV"
+
+      - name: Deploy Next.js
+        run: |
+          set -euo pipefail
+          gcloud run deploy "$WEB_SERVICE" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --source frontend \
+            --port 3000 \
+            --no-invoker-iam-check \
+            --memory 1Gi \
+            --cpu 1 \
+            --min-instances 1 \
+            --max-instances 2 \
+            --timeout 3600 \
+            --set-build-env-vars "NEXT_PUBLIC_API_BASE_URL=${PUBLIC_WEB_BASE_URL}" \
+            --set-env-vars "NEXT_PUBLIC_API_BASE_URL=${PUBLIC_WEB_BASE_URL},INTERNAL_API_BASE_URL=${API_URL},NODE_ENV=production" \
+            --quiet
+
+          web_url="$(gcloud run services describe "$WEB_SERVICE" \
+            --project "$PROJECT_ID" \
+            --region "$REGION" \
+            --format='value(status.url)')"
+          echo "WEB_URL=${web_url}" >> "$GITHUB_ENV"
+
+      - name: Smoke test deployment
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "${API_URL}/health"
+          curl --fail --silent --show-error "${QDRANT_URL}/collections" >/dev/null
+          curl --fail --silent --show-error --head "$PUBLIC_WEB_BASE_URL" >/dev/null
+          curl --fail --silent --show-error \
+            -X OPTIONS "${API_URL}/api/project-evaluations" \
+            -H "Origin: ${PUBLIC_WEB_BASE_URL}" \
+            -H "Access-Control-Request-Method: GET" \
+            >/dev/null
+
+          echo "Production web: ${PUBLIC_WEB_BASE_URL}"
+          echo "Cloud Run web: ${WEB_URL}"
+          echo "Cloud Run api: ${API_URL}"
+          echo "Cloud Run qdrant: ${QDRANT_URL}"
