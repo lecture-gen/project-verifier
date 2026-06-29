@@ -37,13 +37,13 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # next build 가 client bundle 에 인라인하는 공개 API base.
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://dialearn.presso.ac}
+        # 비워두면 브라우저는 같은 origin 의 /api/project-evaluations 프록시를 사용한다.
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
     restart: unless-stopped
     environment:
       # 서버 컴포넌트 / Route Handler 가 docker network 안에서 api 컨테이너로 직접 호출.
       INTERNAL_API_BASE_URL: http://api:8000
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-https://dialearn.presso.ac}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-}
       NODE_ENV: production
     depends_on:
       api:

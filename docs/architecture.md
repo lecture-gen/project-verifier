@@ -46,7 +46,7 @@ Browser ↔ Next.js 16 (SSR/CSR) ↔ FastAPI ↔ SQLite3 / Qdrant / OpenAI API
 
 **브라우저 → API**
 - `NEXT_PUBLIC_API_BASE_URL` 환경변수 사용 (공개, 브라우저에 인라인됨)
-- 예: `https://dialearn.presso.ac`
+- 단일 도메인 Docker 배포에서는 비워 두고 same-origin `/api/project-evaluations` 프록시 사용
 
 **SSR/Route Handlers → API**
 - `INTERNAL_API_BASE_URL` 환경변수 사용 (Docker 내부, api:8000)
@@ -594,7 +594,7 @@ QDRANT_URL=http://qdrant:6333
 RAG_ENABLED=true
 
 PUBLIC_WEB_BASE_URL=https://dialearn.presso.ac
-NEXT_PUBLIC_API_BASE_URL=https://dialearn.presso.ac
+NEXT_PUBLIC_API_BASE_URL=
 CORS_ALLOW_ORIGINS=https://dialearn.presso.ac,http://localhost:3000
 ```
 

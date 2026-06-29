@@ -93,6 +93,11 @@ function detailToMessage(detail: unknown, fallback: string): string {
   return fallback;
 }
 
+function htmlErrorToMessage(text: string, fallback: string): string {
+  if (!text.trimStart().toLowerCase().startsWith("<!doctype html")) return fallback;
+  return "API 서버가 JSON 대신 HTML을 반환했습니다. API base URL 또는 /api 프록시 설정을 확인하세요.";
+}
+
 async function parseError(response: Response): Promise<ApiError> {
   const fallback = `${response.status} ${response.statusText}`.trim();
   let detail: unknown = null;
@@ -103,7 +108,7 @@ async function parseError(response: Response): Promise<ApiError> {
       detail = data?.detail ?? data;
     } else {
       const text = await response.text();
-      detail = text.length > 0 ? text : null;
+      detail = text.length > 0 ? htmlErrorToMessage(text, fallback) : null;
     }
   } catch {
     detail = null;
