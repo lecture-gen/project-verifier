@@ -44,8 +44,10 @@ roles/artifactregistry.admin
 roles/secretmanager.admin
 roles/iam.serviceAccountUser
 roles/serviceusage.serviceUsageAdmin
-roles/storage.objectAdmin
+roles/storage.admin
 ```
+
+`gcloud run deploy --source`는 `run-sources-<project>-<region>` 버킷 조회와 객체 업로드를 함께 수행하므로 `storage.buckets.get`이 포함된 Storage 권한이 필요하다.
 
 이미 필요한 Google Cloud API가 활성화되어 있으면 `roles/serviceusage.serviceUsageAdmin`은 제거할 수 있다.
 
